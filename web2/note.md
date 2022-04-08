@@ -169,6 +169,7 @@ export class Everything {
 }
 ```
 
+
 アプローチは 3 通り。
 
 1. 依存関係を constructor の第二引数として受け付けるようにする
@@ -177,16 +178,85 @@ export class Everything {
 export class User {
     constructor(
       private data: UserProps,
-      private events: Everything
+      private events: Eventing
       ) {}
 // ...
 }
 
-new User({id: 1}, new Everything());
+new User({id: 1}, new Eventing());
 ```
+
+簡単に導入可能だけど、
+
+将来Eventing以外のデータが必要になった時に
+
+constructorが膨れ上がるし
+
+newするときに渡すデータが増えていく
+
 
 2. コンストラクターへの依存関係のみを受け入れ、静的クラスメソッドを定義して、ユーザーを再構成し、後でプロパティを割り当てる
 
 ```TypeScript
+export class User {
+    // userデータは静的メソッドから
+    static fromData(data: UserProps) {
+        const user = new User(new Eventing());
+        user.set(data);
+        return user;
+    }
+
+    private data: UserProps;
+
+    // Eventingはconstructorから
+    constructor(private events: Eventing) {}
+
+    get(propsName: string): number | string {
+        return this.data[propsName];
+    }
+
+    set(update: UserProps): void {
+        Object.assign(this.data, update);
+    }
+
+    //...
+}
+```
+
+将来的にUserProps以外のデータが必要になった時に
+静的メソッド内部に初期化処理を追加するか
+
+静的メソッドを追加する分に応じて増やしていかなくてはならない
+
+
+
+3. 直接ハードコーディングしてしまう
+
+```TypeScript
+
+export class User {
+    private events: Eventing = new Eventing();
+
+    constructor(private data: UserProps) {}
+
+    get(propsName: string): number | string {
+        return this.data[propsName];
+    }
+
+    set(update: UserProps): void {
+        console.log(update);
+        Object.assign(this.data, update);
+    }
 
 ```
+
+デメリットは、
+
+将来的にEventingに代わるデータを使いたくなったときに
+
+修正する必要があること
+
+講義ではこのアプローチ3を採用する
+
+
+

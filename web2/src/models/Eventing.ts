@@ -9,7 +9,7 @@ interface UserProps {
 // 今のところ、引数なし戻り値なしの関数しか受け付けない
 type Callback = () => void;
 
-export class Everything {
+export class Eventing {
     
     events: { [key: string]: Callback[] } = {};
     
