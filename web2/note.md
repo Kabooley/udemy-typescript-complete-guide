@@ -70,8 +70,8 @@ $ npm i -D parcel
 ```html
 <!-- index.html -->
 <body>
-    <link rel="stylesheet" href="./src/styles/style.css" />
-    <script type="module" src="./src/index.ts"></script>
+  <link rel="stylesheet" href="./src/styles/style.css" />
+  <script type="module" src="./src/index.ts"></script>
 </body>
 ```
 
@@ -169,7 +169,6 @@ export class Everything {
 }
 ```
 
-
 アプローチは 3 通り。
 
 1. 依存関係を constructor の第二引数として受け付けるようにする
@@ -188,12 +187,11 @@ new User({id: 1}, new Eventing());
 
 簡単に導入可能だけど、
 
-将来Eventing以外のデータが必要になった時に
+将来 Eventing 以外のデータが必要になった時に
 
-constructorが膨れ上がるし
+constructor が膨れ上がるし
 
-newするときに渡すデータが増えていく
-
+new するときに渡すデータが増えていく
 
 2. コンストラクターへの依存関係のみを受け入れ、静的クラスメソッドを定義して、ユーザーを再構成し、後でプロパティを割り当てる
 
@@ -223,12 +221,10 @@ export class User {
 }
 ```
 
-将来的にUserProps以外のデータが必要になった時に
+将来的に UserProps 以外のデータが必要になった時に
 静的メソッド内部に初期化処理を追加するか
 
 静的メソッドを追加する分に応じて増やしていかなくてはならない
-
-
 
 3. 直接ハードコーディングしてしまう
 
@@ -252,11 +248,134 @@ export class User {
 
 デメリットは、
 
-将来的にEventingに代わるデータを使いたくなったときに
+将来的に Eventing に代わるデータを使いたくなったときに
 
 修正する必要があること
 
-講義ではこのアプローチ3を採用する
+講義ではこのアプローチ 3 を採用する
+
+## 既存のクラスメソッドを分離する
+
+もとの class User から axios 通信に関するメソッドを分離したい
+
+そんなとき
+
+```TypeScript
+import axios, { AxiosResponse } from 'axios';
+import { Eventing } from './Eventing';
+
+export class User {
+    // events: { [key: string]: Callback[] } = {};
+    public events: Eventing = new Eventing();
+    constructor(private data: UserProps) {}
+
+    get(propsName: string): number | string {
+        return this.data[propsName];
+    }
+
+    set(update: UserProps): void {
+        console.log(update);
+        Object.assign(this.data, update);
+    }
+
+        fetch(): void {
+        console.log('fetching...');
+        axios
+            .get(`http://localhost:3000/users/${this.get('id')}`)
+            .then((response: AxiosResponse): void => {
+                this.set(response.data);
+            });
+    }
+
+    save(): void {
+        console.log("saving...");
+        // 既存のidを指定していれば、
+        if(this.get('id')) {
+            // putで既存ユーザを更新する
+            axios.put(`http://localhost:3000/users/${this.get('id')}`, this.data);
+        }
+        else  {
+            // そうでないならpostで保存する
+            axios.post(`http://localhost:3000/users`, this.data);
+        }
+    }
+}
+```
+
+`Sync.ts`というファイルへ、単純にカット＆ペーストすると
+
+```TypeScript
+import axios, { AxiosResponse } from 'axios';
 
 
+export class Sync {
+    fetch(): void {
+        console.log('fetching...');
+        axios
+            .get(`http://localhost:3000/users/${this.get('id')}`)
+            .then((response: AxiosResponse): void => {
+                this.set(response.data);
+            });
+    }
+
+    save(): void {
+        console.log("saving...");
+        // 既存のidを指定していれば、
+        if(this.get('id')) {
+            // putで既存ユーザを更新する
+            axios.put(`http://localhost:3000/users/${this.get('id')}`, this.data);
+        }
+        else  {
+            // そうでないならpostで保存する
+            axios.post(`http://localhost:3000/users`, this.data);
+        }
+    }
+}
+```
+
+すると、
+
+`this`がグローバルを指してしまう
+
+`Sync`と`User`に明確な関係を持たせる必要がある
+
+前提として、
+
+`User`は自身のプロパティとして`Sync`型のプロパティを持つとする
+
+3つのアプローチがあるよとのこと
+
+1. `Sync`は`save`, `fetch`関数の引数を取得する
+
+デメリット：
+
+`User`に対してのみ利用できるので再利用性がない
+
+
+2. とあるinterfaceを満たす引数を取得する
+
+class Sync
+save(id: num, serialize: Serializable): void
+fetch(id: num, deserial: Deserialize): void
+
+interface Serializable
+interface Deserializable
+
+class User
+sync: Sync
+
+
+
+3. Genericsクラスにする
+
+例として`UserProps`を受け継ぐ
+
+class Sync
+save(id: num, data: T): AxiosPromise<T>
+fetch(id: number): AxiosPromise<T>
+
+class User
+sync: Sync<UserProps>
+
+メリット：再利用性が高い
 
