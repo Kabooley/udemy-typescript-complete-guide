@@ -70,8 +70,8 @@ $ npm i -D parcel
 ```html
 <!-- index.html -->
 <body>
-  <link rel="stylesheet" href="./src/styles/style.css" />
-  <script type="module" src="./src/index.ts"></script>
+    <link rel="stylesheet" href="./src/styles/style.css" />
+    <script type="module" src="./src/index.ts"></script>
 </body>
 ```
 
@@ -343,7 +343,7 @@ export class Sync {
 
 `User`は自身のプロパティとして`Sync`型のプロパティを持つとする
 
-3つのアプローチがあるよとのこと
+3 つのアプローチがあるよとのこと
 
 1. `Sync`は`save`, `fetch`関数の引数を取得する
 
@@ -351,8 +351,7 @@ export class Sync {
 
 `User`に対してのみ利用できるので再利用性がない
 
-
-2. とあるinterfaceを満たす引数を取得する
+2. とある interface を満たす引数を取得する
 
 class Sync
 save(id: num, serialize: Serializable): void
@@ -364,9 +363,7 @@ interface Deserializable
 class User
 sync: Sync
 
-
-
-3. Genericsクラスにする
+3. Generics クラスにする
 
 例として`UserProps`を受け継ぐ
 
@@ -379,3 +376,34 @@ sync: Sync<UserProps>
 
 メリット：再利用性が高い
 
+```TypeScript
+// Sync.ts so far.
+import axios, { AxiosPromise } from 'axios';
+import { UserProps } from './User';
+
+export class Sync {
+    constructor(public rootUrl: string) {}
+    fetch(id: number): AxiosPromise {
+        console.log('fetching...');
+        return axios.get(`${this.rootUrl}/${id}`);
+    }
+
+    save(data: UserProps): void {
+        const { id } = data;
+        console.log('saving...');
+        // 既存のidを指定していれば、
+        if (id) {
+            // putで既存ユーザを更新する
+            axios.put(`${this.rootUrl}/${id}`, data);
+        } else {
+            // そうでないならpostで保存する
+            axios.post(this.rootUrl, data);
+        }
+    }
+}
+
+// USAGE
+//
+// const sync = new Sync('http://localhost:3000/users');
+
+```

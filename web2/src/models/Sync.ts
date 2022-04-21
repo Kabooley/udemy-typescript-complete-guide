@@ -1,26 +1,27 @@
-import axios, { AxiosResponse } from 'axios';
-
+import axios, { AxiosPromise } from 'axios';
+import { UserProps } from './User';
 
 export class Sync {
-    fetch(): void {
+    constructor(public rootUrl: string) {}
+    fetch(id: number): AxiosPromise {
         console.log('fetching...');
-        axios
-            .get(`http://localhost:3000/users/${this.get('id')}`)
-            .then((response: AxiosResponse): void => {
-                this.set(response.data);
-            });
+        return axios.get(`${this.rootUrl}/${id}`);
     }
 
-    save(): void {
-        console.log("saving...");
+    save(data: UserProps): void {
+        const { id } = data;
+        console.log('saving...');
         // 既存のidを指定していれば、
-        if(this.get('id')) {
+        if (id) {
             // putで既存ユーザを更新する
-            axios.put(`http://localhost:3000/users/${this.get('id')}`, this.data);
-        }
-        else  {
+            axios.put(`${this.rootUrl}/${id}`, data);
+        } else {
             // そうでないならpostで保存する
-            axios.post(`http://localhost:3000/users`, this.data);
+            axios.post(this.rootUrl, data);
         }
     }
 }
+
+// USAGE
+// 
+// const sync = new Sync('http://localhost:3000/users');
