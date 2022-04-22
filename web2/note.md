@@ -385,19 +385,27 @@ export class Sync {
     constructor(public rootUrl: string) {}
     fetch(id: number): AxiosPromise {
         console.log('fetching...');
+        // axios.get()のプロミスを返すようにすれば、
+        // そのプロミスをどうするかは外部にお任せできる
+        // 
+        // こうすることで、
+        // fetchの仕事だけを切り出すことができた
         return axios.get(`${this.rootUrl}/${id}`);
     }
 
-    save(data: UserProps): void {
+    // 同様にsave()でもプロミスを返すようにすれば...
+    save(data: UserProps): AxiosPromise {
         const { id } = data;
         console.log('saving...');
-        // 既存のidを指定していれば、
+        // 
+        // DBへの反映結果を外部へ知らせることができる
+        // 
         if (id) {
             // putで既存ユーザを更新する
-            axios.put(`${this.rootUrl}/${id}`, data);
+            return axios.put(`${this.rootUrl}/${id}`, data);
         } else {
             // そうでないならpostで保存する
-            axios.post(this.rootUrl, data);
+            return axios.post(this.rootUrl, data);
         }
     }
 }
@@ -407,3 +415,169 @@ export class Sync {
 // const sync = new Sync('http://localhost:3000/users');
 
 ```
+
+いまのところ、DBとの通信に関するPromiseを外部へもたらすことができるようになっている
+
+ここで汎用性を持たせるために、Genericsを導入すると...
+
+```TypeScript
+import axios, { AxiosPromise } from 'axios';
+import { UserProps } from './User';
+
+export class Sync<T> {
+    constructor(public rootUrl: string) {}
+    fetch(id: number): AxiosPromise {
+        console.log('fetching...');
+        return axios.get(`${this.rootUrl}/${id}`);
+    }
+
+    save(data: T): AxiosPromise {
+        // NOTE: `id`なんてしらないよというエラーがでる
+        // 
+        const { id } = data;
+        console.log('saving...');
+
+        if (id) {
+            // putで既存ユーザを更新する
+            return axios.put(`${this.rootUrl}/${id}`, data);
+        } else {
+            // そうでないならpostで保存する
+            return axios.post(this.rootUrl, data);
+        }
+    }
+}
+```
+
+当然動的な型から`id`の変数が必ず取得できるわけではないので
+
+これはTypeErrorである
+
+これの解決策として、動的な型Tは必ずあるinterfaceを継承するとすればいい
+
+```TypeScript
+import axios, { AxiosPromise } from 'axios';
+import { UserProps } from './User';
+
+// Syncの動的な型の型付けであるinterfaceを定義する
+interface HasId {
+    id: number;
+};
+
+// HasIdを必ず継承させる
+export class Sync<T extends HasId> {
+    constructor(public rootUrl: string) {}
+    fetch(id: number): AxiosPromise {
+        console.log('fetching...');
+        return axios.get(`${this.rootUrl}/${id}`);
+    }
+
+    save(data: T): AxiosPromise {
+        // NOTE: `id`なんてしらないよというエラーがでる
+        // 
+        const { id } = data;
+        console.log('saving...');
+
+        if (id) {
+            // putで既存ユーザを更新する
+            return axios.put(`${this.rootUrl}/${id}`, data);
+        } else {
+            // そうでないならpostで保存する
+            return axios.post(this.rootUrl, data);
+        }
+    }
+}
+```
+
+これで文法的なエラーはなくなった
+
+さっそくUserクラスに導入してみよう
+
+
+```TypeScript
+import { Eventing } from './Eventing';
+import { Sync } from './Sync';
+
+export interface UserProps {
+    id?: number;
+    name?: string;
+    age?: number;
+}
+
+type Callback = () => void;
+
+const rootUrl: string = "http://localhost:3000/users";
+
+export class User {
+    public events: Eventing = new Eventing();
+    // 
+    // NOTE: UserPropsはHasIdを満たさないというエラーが出る
+    // 
+    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    constructor(private data: UserProps) {}
+
+    get(propsName: string): number | string {
+        return this.data[propsName];
+    }
+
+    set(update: UserProps): void {
+        console.log(update);
+        Object.assign(this.data, update);
+    }
+}
+```
+
+つまり、
+
+`UserProps`インタフェイスではidはオプションだけど、
+
+`HasId`では必須であるので
+
+このinterface同士は互換性がないよと言っている
+
+これの解決策は、
+
+`HasId`の`id`プロパティをオプショナルにすることである
+
+```TypeScript
+interface HasId {
+    id?: number;
+}
+```
+
+こうすれば、これまでの問題にすべて対処できる
+
+`id`はオプショナルなので、
+
+`Sync`の`save`メソッドでは`id`があるかどうかの条件分岐がある
+
+これで矛盾なく利用できる
+
+
+#### `const {id} = data;`のような存在があいまいな値の扱いについて
+
+**`undefined`をとりうるときはタイプガードを設けよ**
+
+```bash
+# tsconfig.jsonを生成する
+$ tsc --init
+```
+
+デフォのtsconfig.jsonは`strict: true`である
+
+`const {id} = data;`の`id`の型が取りうる値はこのコンパイラオプションで異なる
+
+- `strict: true`で`number | undeifned`
+- `strict: false`で`number`
+
+である
+
+当然`strict: true`で開発するのがふつうである
+
+であるならば、
+
+`undefined`をとりうることがあるので
+
+そのことを見越したタイプガードを設けるのが
+
+TypeScriptのお作法であるといえる
+
