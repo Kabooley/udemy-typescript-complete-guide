@@ -553,7 +553,13 @@ interface HasId {
 これで矛盾なく利用できる
 
 
-#### `const {id} = data;`のような存在があいまいな値の扱いについて
+#### `const {id} = data;`のようにidが必ず取得できるとは限らないとき
+
+TypeScriptの作法：
+
+**TypeScriptは任意の値のプロパティを参照するときは必ず実際に存在するのか確認せよ**
+
+ということで
 
 **`undefined`をとりうるときはタイプガードを設けよ**
 
@@ -581,3 +587,187 @@ $ tsc --init
 
 TypeScriptのお作法であるといえる
 
+
+## 戻り値があいまいなメソッドの型定義アプローチ
+
+class Userからget, setを別クラスとして分離した。
+
+すると
+
+getメソッドの戻り値が不適切になる。
+
+今class Attributesが汎用的な型<T>を採用するとして
+
+getメソッドはどんな型のオブジェクトでも受け入れて、
+
+適切な戻り値を返さなくてはならないが、
+
+それがどんな型になるのかは推測不可能である
+
+
+それはTypeScriptではどう対応すべきなのか...
+
+```TypeScript
+// class User
+import { Eventing } from './Eventing';
+import { Sync } from './Sync';
+
+export interface UserProps {
+    id?: number;
+    name?: string;
+    age?: number;
+}
+
+// 今のところ、引数なし戻り値なしの関数しか受け付けない
+type Callback = () => void;
+
+const rootUrl: string = "http://localhost:3000/users";
+
+export class User {
+    // events: { [key: string]: Callback[] } = {};
+    public events: Eventing = new Eventing();
+    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    constructor(private data: UserProps) {}
+    
+    get(propsName: string): number | string {
+        return this.data[propsName];
+    }
+
+    set(update: UserProps): void {
+        console.log(update);
+        Object.assign(this.data, update);
+    }
+}
+
+
+// set, getを抽出した
+// UserPropsのかわりにGenericsを採用した
+export class Attributes<T>{
+    constructor(private data: T){}
+
+    
+    // Genericsのように動的な型を採用すると、
+    // number | stringしか返さない仕様はおかしいことになる
+    get(propsName: string): number | string {
+        return this.data[propsName];
+    }
+
+    set(update: T): void {
+        console.log(update);
+        Object.assign(this.data, update);
+    }
+}
+```
+
+getの戻り値の型があいまいになる
+
+```TypeScript
+const attrs = new Attributes<UserProps>(
+    {id: 11, name: "DaftPunk", age: 40}
+);
+
+// idには`string | number`の型推測がでる
+const id = attrs.get("id");
+```
+
+対処方法１. `as`で型アサーション
+
+```TypeScript
+const id = attrs.get("id") as number;
+```
+
+これの欠点は使う側が常にチェックしないといけないということ
+
+
+この問題の解決策として２つの重要な概念を理解しよう
+
+#### 重要な概念１．TypeScriptではstring型は型にできる
+
+typeを使って唯一の値のみをとる型を生成することができる
+
+以下は`steven`という値しか受け付けない型`BestName`の定義である
+
+```TypeScript
+type BestName = "steven";
+
+const printName = (name: BestName): void => {
+    console.log(name);
+}
+
+printName("dsfdsfd");   // TypeError
+printName("Jhonathan");   // TypeError
+printName("Stepahn");   // TypeError
+printName("steven");   // correctly pirnted
+```
+
+
+#### 重要な概念２．JavaScriptではすべてのオブジェクト・キーは文字列である
+
+以下に示すように、
+
+オブジェクトのキーはすべて文字列である
+
+```JavaScript
+const colors = {
+    red: "Red",
+    5: "Orange"
+};
+
+// numberを渡しているように見えて...
+colors[5];  // Red
+
+// 実際は文字列でも（というか文字列だけ）キーとして使える
+colors["5"];  // Red
+```
+
+#### 高度な汎用型定義
+
+先の重要な概念を考慮してリファクタリングする
+
+```TypeScript
+export class Attributes<T>{
+    constructor(private data: T){}
+
+    get<K extends keyof T>(key: K): T[K] {
+        return this.data[key];
+    }
+
+    set(update: T): void {
+        console.log(update);
+        Object.assign(this.data, update);
+    }
+}
+
+const attrs = new Attributes<UserProps>(
+    {id: 11, name: "DaftPunk", age: 40}
+);
+
+// オブジェクトのキーは必ずstring型である
+const id = attrs.get("id");
+
+// 内部的には、Kは渡されるオブジェクトのキーからなる型定義である
+type K = "id" | "name" | "age";
+```
+
+Tは渡されるオブジェクトの型、
+Kは渡されるオブジェクトのキーからなるユニオン型となる
+
+`keyOf`: 
+
+> keyofはオブジェクト型からプロパティ名を型として返す型演算子です。
+
+> 2つ以上のプロパティがあるオブジェクト型にkeyofを使った場合は、すべてのプロパティ名がユニオン型で返されます。
+
+
+```TypeScript
+type Book = {
+  title: string;
+  price: number;
+  rating: number;
+};
+type BookKey = keyof Book;
+// 上は次と同じ意味になる
+type BookKey = "title" | "price" | "rating";
+```
+
+こうすれば常に渡されるオブジェクトとオブジェクトの戻り値に完全に対応できる
