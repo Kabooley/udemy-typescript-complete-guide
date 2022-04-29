@@ -1,5 +1,6 @@
 import { Eventing } from './Eventing';
 import { Sync } from './Sync';
+import { Attributes } from "./Attributes";
 
 export interface UserProps {
     id?: number;
@@ -16,5 +17,17 @@ export class User {
     // events: { [key: string]: Callback[] } = {};
     public events: Eventing = new Eventing();
     public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
-    constructor(private data: UserProps) {}
+    public attributes: Attributes<UserProps>;
+    constructor(private attrs: UserProps) {
+        this.attributes = new Attributes<UserProps>(attrs)
+    }
+
+    // on(eventName: string, callback: Callback): void {
+    //     this.events.on(eventName, callback)
+    // }
+
+    get on() {
+        return this.events.on;
+    }
+
 }

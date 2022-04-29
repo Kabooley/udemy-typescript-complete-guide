@@ -387,7 +387,7 @@ export class Sync {
         console.log('fetching...');
         // axios.get()のプロミスを返すようにすれば、
         // そのプロミスをどうするかは外部にお任せできる
-        // 
+        //
         // こうすることで、
         // fetchの仕事だけを切り出すことができた
         return axios.get(`${this.rootUrl}/${id}`);
@@ -397,9 +397,9 @@ export class Sync {
     save(data: UserProps): AxiosPromise {
         const { id } = data;
         console.log('saving...');
-        // 
+        //
         // DBへの反映結果を外部へ知らせることができる
-        // 
+        //
         if (id) {
             // putで既存ユーザを更新する
             return axios.put(`${this.rootUrl}/${id}`, data);
@@ -416,9 +416,9 @@ export class Sync {
 
 ```
 
-いまのところ、DBとの通信に関するPromiseを外部へもたらすことができるようになっている
+いまのところ、DB との通信に関する Promise を外部へもたらすことができるようになっている
 
-ここで汎用性を持たせるために、Genericsを導入すると...
+ここで汎用性を持たせるために、Generics を導入すると...
 
 ```TypeScript
 import axios, { AxiosPromise } from 'axios';
@@ -433,7 +433,7 @@ export class Sync<T> {
 
     save(data: T): AxiosPromise {
         // NOTE: `id`なんてしらないよというエラーがでる
-        // 
+        //
         const { id } = data;
         console.log('saving...');
 
@@ -450,9 +450,9 @@ export class Sync<T> {
 
 当然動的な型から`id`の変数が必ず取得できるわけではないので
 
-これはTypeErrorである
+これは TypeError である
 
-これの解決策として、動的な型Tは必ずあるinterfaceを継承するとすればいい
+これの解決策として、動的な型 T は必ずある interface を継承するとすればいい
 
 ```TypeScript
 import axios, { AxiosPromise } from 'axios';
@@ -473,7 +473,7 @@ export class Sync<T extends HasId> {
 
     save(data: T): AxiosPromise {
         // NOTE: `id`なんてしらないよというエラーがでる
-        // 
+        //
         const { id } = data;
         console.log('saving...');
 
@@ -490,8 +490,7 @@ export class Sync<T extends HasId> {
 
 これで文法的なエラーはなくなった
 
-さっそくUserクラスに導入してみよう
-
+さっそく User クラスに導入してみよう
 
 ```TypeScript
 import { Eventing } from './Eventing';
@@ -509,9 +508,9 @@ const rootUrl: string = "http://localhost:3000/users";
 
 export class User {
     public events: Eventing = new Eventing();
-    // 
+    //
     // NOTE: UserPropsはHasIdを満たさないというエラーが出る
-    // 
+    //
     public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
     constructor(private data: UserProps) {}
 
@@ -528,11 +527,11 @@ export class User {
 
 つまり、
 
-`UserProps`インタフェイスではidはオプションだけど、
+`UserProps`インタフェイスでは id はオプションだけど、
 
 `HasId`では必須であるので
 
-このinterface同士は互換性がないよと言っている
+この interface 同士は互換性がないよと言っている
 
 これの解決策は、
 
@@ -552,12 +551,11 @@ interface HasId {
 
 これで矛盾なく利用できる
 
+#### `const {id} = data;`のように id が必ず取得できるとは限らないとき
 
-#### `const {id} = data;`のようにidが必ず取得できるとは限らないとき
+TypeScript の作法：
 
-TypeScriptの作法：
-
-**TypeScriptは任意の値のプロパティを参照するときは必ず実際に存在するのか確認せよ**
+**TypeScript は任意の値のプロパティを参照するときは必ず実際に存在するのか確認せよ**
 
 ということで
 
@@ -568,12 +566,12 @@ TypeScriptの作法：
 $ tsc --init
 ```
 
-デフォのtsconfig.jsonは`strict: true`である
+デフォの tsconfig.json は`strict: true`である
 
 `const {id} = data;`の`id`の型が取りうる値はこのコンパイラオプションで異なる
 
-- `strict: true`で`number | undeifned`
-- `strict: false`で`number`
+-   `strict: true`で`number | undeifned`
+-   `strict: false`で`number`
 
 である
 
@@ -585,27 +583,25 @@ $ tsc --init
 
 そのことを見越したタイプガードを設けるのが
 
-TypeScriptのお作法であるといえる
-
+TypeScript のお作法であるといえる
 
 ## 戻り値があいまいなメソッドの型定義アプローチ
 
-class Userからget, setを別クラスとして分離した。
+class User から get, set を別クラスとして分離した。
 
 すると
 
-getメソッドの戻り値が不適切になる。
+get メソッドの戻り値が不適切になる。
 
-今class Attributesが汎用的な型<T>を採用するとして
+今 class Attributes が汎用的な型<T>を採用するとして
 
-getメソッドはどんな型のオブジェクトでも受け入れて、
+get メソッドはどんな型のオブジェクトでも受け入れて、
 
 適切な戻り値を返さなくてはならないが、
 
 それがどんな型になるのかは推測不可能である
 
-
-それはTypeScriptではどう対応すべきなのか...
+それは TypeScript ではどう対応すべきなのか...
 
 ```TypeScript
 // class User
@@ -628,7 +624,7 @@ export class User {
     public events: Eventing = new Eventing();
     public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
     constructor(private data: UserProps) {}
-    
+
     get(propsName: string): number | string {
         return this.data[propsName];
     }
@@ -645,7 +641,7 @@ export class User {
 export class Attributes<T>{
     constructor(private data: T){}
 
-    
+
     // Genericsのように動的な型を採用すると、
     // number | stringしか返さない仕様はおかしいことになる
     get(propsName: string): number | string {
@@ -659,7 +655,7 @@ export class Attributes<T>{
 }
 ```
 
-getの戻り値の型があいまいになる
+get の戻り値の型があいまいになる
 
 ```TypeScript
 const attrs = new Attributes<UserProps>(
@@ -678,12 +674,11 @@ const id = attrs.get("id") as number;
 
 これの欠点は使う側が常にチェックしないといけないということ
 
-
 この問題の解決策として２つの重要な概念を理解しよう
 
-#### 重要な概念１．TypeScriptではstring型は型にできる
+#### 重要な概念１．TypeScript では string 型は型にできる
 
-typeを使って唯一の値のみをとる型を生成することができる
+type を使って唯一の値のみをとる型を生成することができる
 
 以下は`steven`という値しか受け付けない型`BestName`の定義である
 
@@ -700,8 +695,7 @@ printName("Stepahn");   // TypeError
 printName("steven");   // correctly pirnted
 ```
 
-
-#### 重要な概念２．JavaScriptではすべてのオブジェクト・キーは文字列である
+#### 重要な概念２．JavaScript ではすべてのオブジェクト・キーは文字列である
 
 以下に示すように、
 
@@ -749,15 +743,14 @@ const id = attrs.get("id");
 type K = "id" | "name" | "age";
 ```
 
-Tは渡されるオブジェクトの型、
-Kは渡されるオブジェクトのキーからなるユニオン型となる
+T は渡されるオブジェクトの型、
+K は渡されるオブジェクトのキーからなるユニオン型となる
 
-`keyOf`: 
+`keyOf`:
 
-> keyofはオブジェクト型からプロパティ名を型として返す型演算子です。
+> keyof はオブジェクト型からプロパティ名を型として返す型演算子です。
 
-> 2つ以上のプロパティがあるオブジェクト型にkeyofを使った場合は、すべてのプロパティ名がユニオン型で返されます。
-
+> 2 つ以上のプロパティがあるオブジェクト型に keyof を使った場合は、すべてのプロパティ名がユニオン型で返されます。
 
 ```TypeScript
 type Book = {
@@ -771,3 +764,140 @@ type BookKey = "title" | "price" | "rating";
 ```
 
 こうすれば常に渡されるオブジェクトとオブジェクトの戻り値に完全に対応できる
+
+class User へ取り込んでみよう
+
+```TypeScript
+import { Eventing } from './Eventing';
+import { Sync } from './Sync';
+import { Attributes } from "./Attributes";
+
+export interface UserProps {
+    id?: number;
+    name?: string;
+    age?: number;
+}
+
+// 今のところ、引数なし戻り値なしの関数しか受け付けない
+type Callback = () => void;
+
+const rootUrl: string = "http://localhost:3000/users";
+
+export class User {
+    // events: { [key: string]: Callback[] } = {};
+    public events: Eventing = new Eventing();
+    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    public attributes: Attributes<UserProps>;
+    constructor(private attrs: UserProps) {
+        this.attributes = new Attributes<UserProps>(attrs)
+    }
+}
+```
+
+上記のような`attrs`の初期化の問題は、
+
+コンストラクタでかならず`UserProps`のオブジェクトを受け取るようにしないといけないことである
+
+このまま試しに使ってみましょう
+
+```TypeScript
+import { User } from './models/User';
+
+const user = new User({name: "new record", age: 0});
+
+
+// Userの各プロパティを介して、各メソッドにアクセスることになる
+//
+// 今のところ、get, setでアクセスできるデータはprivateなので
+// 以下のようにいちいちgetメソッドを呼び出さないといけない
+user.attributes.get('id');
+user.attributes.get('name');
+user.attributes.get('age');
+// リファクタリングする前は...
+//  user.save()で済んでいたのに...
+user.sync.save();
+```
+
+この通り、今のところまだ改善の余地がある
+
+`user.PROPERTY.get`ではなくて、`user.get`で使えるようにしたい
+
+## クラス・メソッドの呼出とインスタンス・メソッドの結びつけ
+
+クラスメソッドである`user.get`で
+
+クラスのプロパティとして存在する`attributes`の`user.attributes.get`を呼び出したい(というか使えるようにしたい)
+
+それをすべてのメソッドに適用したい
+
+そんなとき
+
+アプローチ方法２つ:
+
+1. 引数をそのままパススルー
+
+get(), on(), trigger()メソッドはそのまま適用できそう
+
+2. アクセサーを使う
+
+例）fetch()の場合
+
+ユーザの id 情報が必要なのであらかじめ get()などでユーザ情報を取得しておかなくてはならない
+
+すると一旦遠回りをすることになる
+
+get() --> fetch()
+
+という具合。
+
+アクセサーの例）
+
+```TypeScript
+class Person {
+    constructor(public firstName: string, public lastName: string){};
+
+    get fullName() {
+        return `${this.firstname} ${this.lastName}`;
+    }
+}
+
+const person = new Person("firstName", "lastname");
+// NOTE: `fullName`はメソッドだけど、getキーワードのおかげでプロパティのように扱える
+console.log(person.fullName);
+```
+
+つまりメソッドがプロパティに化けるわけである
+
+これを利用する
+
+```TypeScript
+export class User {
+    public events: Eventing = new Eventing();
+    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    public attributes: Attributes<UserProps>;
+    constructor(private attrs: UserProps) {
+        this.attributes = new Attributes<UserProps>(attrs)
+    }
+
+    // やりたいこと。
+    // events.on()メソッドを、user.on()で呼び出したい。
+    // 以下のon()定義のデメリットは
+    //
+    // on(eventName: string, callback: Callback): void {
+    //     this.events.on(eventName, callback)
+    // }
+
+    // アクセサを使うと、参照だけ返せる
+    get on() {
+        // NOTE: 関数を実行しない。参照だけを返す。
+        return this.events.on;
+    }
+}
+
+// USAGE
+//
+// 以下のように別の関数にすることもできるし
+const userOn = user.on;
+// 直接使うこともできる
+user.on('change', () => {})
+```
