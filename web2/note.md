@@ -714,7 +714,7 @@ colors[5];  // Red
 colors["5"];  // Red
 ```
 
-#### 高度な汎用型定義
+## 高度な汎用型定義
 
 先の重要な概念を考慮してリファクタリングする
 
@@ -822,7 +822,7 @@ user.sync.save();
 
 `user.PROPERTY.get`ではなくて、`user.get`で使えるようにしたい
 
-## クラス・メソッドの呼出とインスタンス・メソッドの結びつけ
+## getter, setter: クラス・メソッドの呼出とインスタンス・メソッドの結びつけ
 
 クラスメソッドである`user.get`で
 
@@ -901,3 +901,72 @@ const userOn = user.on;
 // 直接使うこともできる
 user.on('change', () => {})
 ```
+
+#### context問題
+
+先のgetterを使ってさっそく実行してみる
+
+```TypeScript
+// index.ts
+const user = new User({name: "new record", age: 0});
+
+
+// TypeError: Cannot read properties of undefined (reading 'name')
+console.log(user.get('name'));
+```
+
+なぜ？
+
+`this`が`Attributes`ではなくて`User`を指しているから
+
+`User`には当然`data`がないから「そんなものはない」とエラーがでる
+
+```TypeScript
+// Attributes.ts
+// ...
+
+// このthisが指すのは...
+  get<K extends keyof T>(key: K): T[K] {
+    return this.data[key];
+  }
+
+```
+
+`this`を固定するにはどうすればいい？
+
+アローコンテキストを利用する
+
+```TypeScript
+// before
+// この構文はget: function(){}の短縮系なので
+  get<K extends keyof T>(key: K): T[K] {
+    return this.data[key];
+  }
+// after
+// こうすればいい
+// NOTE: これはBabelの実験段階の機能だそうです
+  get = <K extends keyof T>(key: K): T[K] => {
+    return this.data[key];
+  }
+```
+
+参考：
+
+https://stackoverflow.com/questions/31362292/how-to-use-arrow-functions-public-class-fields-as-class-methods
+
+正しく行うにはconstructor内でsuper()を呼び出して
+
+this.メソッド = this.メソッド.bind(this)することになる
+
+ともかく、この変更をすべてのUserが取り込むことになるclassへ適用する
+
+講義ではその（逆行的な）リファクタリングはしなかったので
+
+この辺を実際どうすべきかはかかわるプロジェクトでのルールに従うことになるでしょう
+
+#### set()の呼び出しで複数のメソッドを内部的に呼び出したい
+
+user.set()でuser.attributes.set()とuser.eventing.trigger()を呼び出したい
+
+そんなとき
+
