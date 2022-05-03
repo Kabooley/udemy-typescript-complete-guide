@@ -964,9 +964,142 @@ this.メソッド = this.メソッド.bind(this)することになる
 
 この辺を実際どうすべきかはかかわるプロジェクトでのルールに従うことになるでしょう
 
-#### set()の呼び出しで複数のメソッドを内部的に呼び出したい
+#### setter 複数のメソッドの内部的な呼び出し
 
-user.set()でuser.attributes.set()とuser.eventing.trigger()を呼び出したい
+1. set()の実装
 
-そんなとき
+これは単純
 
+```TypeScript
+export class User {
+  // events: { [key: string]: Callback[] } = {};
+  public events: Eventing = new Eventing();
+  public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+  public attributes: Attributes<UserProps>;
+  constructor(private attrs: UserProps) {
+    this.attributes = new Attributes<UserProps>(attrs);
+  }
+
+    // ...
+
+  set(update: UserProps): void {
+    this.attributes.set(update);
+    this.events.trigger("change");
+  }
+}
+
+
+// 使ってみる
+user.on('change', () => {
+    console.log('User was changed. We probably need to change some HTML');
+});
+user.set({name: "username changed"});
+```
+
+```conosle
+username changed
+User was changed. We probably need to change some HTML
+```
+
+2. fetch()の実装
+
+attributes.get()とSync.fetch()を呼び出す
+
+- idなしだと例外
+- sync.fetch(id)でデータを取得する
+- attributes.set()で反映
+
+```TypeScript
+import axios, { AxiosPromise } from 'axios';
+
+export class User {
+  // events: { [key: string]: Callback[] } = {};
+  public events: Eventing = new Eventing();
+  public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+  public attributes: Attributes<UserProps>;
+  constructor(private attrs: UserProps) {
+    this.attributes = new Attributes<UserProps>(attrs);
+  }
+
+    // ...
+
+  set(update: UserProps): void {
+    this.attributes.set(update);
+    this.events.trigger("change");
+  }
+
+  fetch(): void {
+      const id: number = this.attributes.get('id');
+
+      if(typeof id !== 'number') {
+          throw new Error('Cannot fetch without id');
+      }
+
+      this.sync.fetch(id).then((res: AxiosResponse): void => {
+          this.attributes.set(response.data);
+      })
+  }
+}
+
+```
+
+このままだと、set()で変更したことによる変更通知が発火しない
+
+変更を行ったのに変更通知を発信できないのはこれいかに
+
+```TypeScript
+      this.sync.fetch(id).then((res: AxiosResponse): void => {
+        //   this.attributes.set(response.data);
+        this.set(response.data);
+      })
+```
+
+ということでuser.set()を呼び出せばいい
+
+同様に、getもuser.get()をattribute.get()の代わりに呼び出す
+
+```TypeScript
+export class User {
+  // events: { [key: string]: Callback[] } = {};
+  public events: Eventing = new Eventing();
+  public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+  public attributes: Attributes<UserProps>;
+  constructor(private attrs: UserProps) {
+    this.attributes = new Attributes<UserProps>(attrs);
+  }
+
+    // ...
+
+  set(update: UserProps): void {
+    this.attributes.set(update);
+    this.events.trigger("change");
+  }
+
+  fetch(): void {
+    //   Instead using this...
+    //   const id: number = this.attributes.get('id');
+      const id: number = this.get('id');
+
+      if(typeof id !== 'number') {
+          throw new Error('Cannot fetch without id');
+      }
+
+      this.sync.fetch(id).then((res: AxiosResponse): void => {
+        //   Instead using this...
+        //   this.attributes.set(response.data);
+          this.set(response.data);
+      })
+  }
+}
+
+
+// 使ってみる
+
+const user = new User({id: 1});
+
+user.on('change', () => {
+    console.log(user);
+});
+
+user.fetch();
+```
