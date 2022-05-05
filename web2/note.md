@@ -1103,3 +1103,190 @@ user.on('change', () => {
 
 user.fetch();
 ```
+
+## User フレームワーク
+
+他実装してみて、全体
+
+
+```TypeScript
+// User.ts
+// 
+// 
+import { Eventing } from './Eventing';
+import { Sync } from './Sync';
+import { Attributes } from './Attributes';
+import { AxiosResponse } from 'axios';
+
+export interface UserProps {
+    id?: number;
+    name?: string;
+    age?: number;
+}
+
+const rootUrl: string = 'http://localhost:3000/users';
+
+export class User {
+    // events: { [key: string]: Callback[] } = {};
+    public events: Eventing = new Eventing();
+    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    public attributes: Attributes<UserProps>;
+    constructor(private attrs: UserProps) {
+        this.attributes = new Attributes<UserProps>(attrs);
+    }
+
+    // on(eventName: string, callback: Callback): void {
+    //     this.events.on(eventName, callback)
+    // }
+
+    get on() {
+        return this.events.on;
+    }
+
+    get trigger() {
+        return this.events.trigger;
+    }
+
+    get get() {
+        return this.attributes.get;
+    }
+
+    set(update: UserProps): void {
+        this.attributes.set(update);
+        this.events.trigger('change');
+    }
+
+    save(): void {
+        this.sync
+            .save(this.attributes.getAll())
+            .then((response: AxiosResponse) => {
+                console.log(response);
+                this.events.trigger('save');
+            })
+            .catch((err) => {
+                this.events.trigger('error');
+            });
+    }
+}
+
+
+// Eventing.ts
+// 
+// interface UserProps {
+    id?: number;
+    name?: string;
+    age?: number;
+}
+
+// 今のところ、引数なし戻り値なしの関数しか受け付けない
+type Callback = () => void;
+
+export class Eventing {
+    events: { [key: string]: Callback[] } = {};
+
+    on = (eventName: string, callback: Callback): void => {
+        const handlers = this.events[eventName] || [];
+        handlers.push(callback);
+        // 動的な配列の生成
+        this.events[eventName] = handlers;
+    };
+
+    trigger = (eventName: string): void => {
+        const handlers = this.events[eventName];
+        if (handlers === undefined || !handlers.length) return;
+        handlers.forEach((cb) => {
+            cb();
+        });
+    };
+}
+
+// Attributes.ts
+// 
+// import { UserProps } from './User';
+
+export class Attributes<T> {
+    constructor(private data: T) {}
+
+    set = (update: T): void => {
+        console.log(update);
+        Object.assign(this.data, update);
+    };
+
+    get = <K extends keyof T>(key: K): T[K] => {
+        console.log(this);
+        return this.data[key];
+    };
+
+    getAll = (): T => {
+        return this.data;
+    };
+}
+
+// Sync.ts
+// 
+// 
+import axios, { AxiosPromise } from 'axios';
+
+interface HasId {
+    id?: number;
+}
+
+export class Sync<T extends HasId> {
+    constructor(public rootUrl: string) {}
+    fetch = (id: number): AxiosPromise => {
+        return axios.get(`${this.rootUrl}/${id}`);
+    }
+
+    save = (data: T): AxiosPromise => {
+        const { id } = data;
+
+        if (id) {
+            // putで既存ユーザを更新する
+            return axios.put(`${this.rootUrl}/${id}`, data);
+        } else {
+            // そうでないならpostで保存する
+            return axios.post(this.rootUrl, data);
+        }
+    }
+}
+
+```
+
+今のところ、子のフレームワークは`User`に特化している
+
+`User`じゃないインスタンスを作りたいときに
+
+つまり、`User`をさらに汎用的にするために
+
+いかに`User`特化から脱却するのかを今後学ぶ...
+
+
+## Composition vs. Inheritance ...again
+
+今のところ`User`クラスは
+
+- ハードコーディング
+- interfaceを使っていない
+
+などかなり硬直的
+
+
+Eventing, Sync, Attributesはすべてクラス内部でインスタンス化する
+
+ハードコーディングな要素である
+
+これを交換可能なものにしたい
+
+
+また、
+
+たとえば`BlogPost`というclassを作るときに
+
+`User`のgetやsaveなどのメソッドを再構築することなく同じように使えるようにしたい
+
+
+なので、
+
+抽象的なクラス`Model`を構築し、
+
+今後は`User`はこの`Model`を継承する

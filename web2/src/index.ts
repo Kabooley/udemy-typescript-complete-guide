@@ -1,10 +1,13 @@
 import { User } from './models/User';
 
-const user = new User({name: "new record", age: 0});
+const user = new User({ name: 'new record', age: 0 });
 
+user.on('save', () => {
+    console.log(user);
+});
 
-// TypeError: Cannot read properties of undefined (reading 'name')
-// console.log(user.get('name'));
+user.on('error', () => {
+    console.log('error');
+});
 
-const hoge = user.get;
-console.log(hoge('name'));
+user.save();

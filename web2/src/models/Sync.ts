@@ -1,5 +1,4 @@
 import axios, { AxiosPromise } from 'axios';
-import { UserProps } from './User';
 
 interface HasId {
     id?: number;
@@ -8,13 +7,11 @@ interface HasId {
 export class Sync<T extends HasId> {
     constructor(public rootUrl: string) {}
     fetch = (id: number): AxiosPromise => {
-        console.log('fetching...');
         return axios.get(`${this.rootUrl}/${id}`);
-    }
+    };
 
     save = (data: T): AxiosPromise => {
         const { id } = data;
-        console.log('saving...');
 
         if (id) {
             // putで既存ユーザを更新する
@@ -23,7 +20,7 @@ export class Sync<T extends HasId> {
             // そうでないならpostで保存する
             return axios.post(this.rootUrl, data);
         }
-    }
+    };
 }
 // USAGE
 //
