@@ -1,7 +1,8 @@
 import { Eventing } from './Eventing';
-import { Sync } from './Sync';
+import { ApiSync } from './ApiSync';
 import { Attributes } from './Attributes';
-import { AxiosResponse } from 'axios';
+import { Model } from './Model';
+import { Collection } from './Collection';
 
 export interface UserProps {
     id?: number;
@@ -11,45 +12,20 @@ export interface UserProps {
 
 const rootUrl: string = 'http://localhost:3000/users';
 
-export class User {
-    // events: { [key: string]: Callback[] } = {};
-    public events: Eventing = new Eventing();
-    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
-    public attributes: Attributes<UserProps>;
-    constructor(private attrs: UserProps) {
-        this.attributes = new Attributes<UserProps>(attrs);
+export class User extends Model<UserProps> {
+    static buildUser(attrs: UserProps): User {
+        return new User(
+            new Attributes<UserProps>(attrs),
+            new Eventing(),
+            new ApiSync<UserProps>(rootUrl)
+        );
     }
 
-    // on(eventName: string, callback: Callback): void {
-    //     this.events.on(eventName, callback)
-    // }
-
-    get on() {
-        return this.events.on;
-    }
-
-    get trigger() {
-        return this.events.trigger;
-    }
-
-    get get() {
-        return this.attributes.get;
-    }
-
-    set(update: UserProps): void {
-        this.attributes.set(update);
-        this.events.trigger('change');
-    }
-
-    save(): void {
-        this.sync
-            .save(this.attributes.getAll())
-            .then((response: AxiosResponse) => {
-                console.log(response);
-                this.events.trigger('save');
-            })
-            .catch((err) => {
-                this.events.trigger('error');
-            });
+    static buildCollection(): Collection<User, UserProps> {
+        return new Collection<User, UserProps> (
+            rootUrl,
+            (json: UserProps) => User.buildUser(json)
+        );
     }
 }
+

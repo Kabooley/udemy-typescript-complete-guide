@@ -70,8 +70,8 @@ $ npm i -D parcel
 ```html
 <!-- index.html -->
 <body>
-    <link rel="stylesheet" href="./src/styles/style.css" />
-    <script type="module" src="./src/index.ts"></script>
+  <link rel="stylesheet" href="./src/styles/style.css" />
+  <script type="module" src="./src/index.ts"></script>
 </body>
 ```
 
@@ -570,8 +570,8 @@ $ tsc --init
 
 `const {id} = data;`の`id`の型が取りうる値はこのコンパイラオプションで異なる
 
--   `strict: true`で`number | undeifned`
--   `strict: false`で`number`
+- `strict: true`で`number | undeifned`
+- `strict: false`で`number`
 
 である
 
@@ -902,9 +902,9 @@ const userOn = user.on;
 user.on('change', () => {})
 ```
 
-#### context問題
+#### context 問題
 
-先のgetterを使ってさっそく実行してみる
+先の getter を使ってさっそく実行してみる
 
 ```TypeScript
 // index.ts
@@ -954,11 +954,11 @@ console.log(user.get('name'));
 
 https://stackoverflow.com/questions/31362292/how-to-use-arrow-functions-public-class-fields-as-class-methods
 
-正しく行うにはconstructor内でsuper()を呼び出して
+正しく行うには constructor 内で super()を呼び出して
 
 this.メソッド = this.メソッド.bind(this)することになる
 
-ともかく、この変更をすべてのUserが取り込むことになるclassへ適用する
+ともかく、この変更をすべての User が取り込むことになる class へ適用する
 
 講義ではその（逆行的な）リファクタリングはしなかったので
 
@@ -1003,9 +1003,9 @@ User was changed. We probably need to change some HTML
 
 2. fetch()の実装
 
-attributes.get()とSync.fetch()を呼び出す
+attributes.get()と Sync.fetch()を呼び出す
 
-- idなしだと例外
+- id なしだと例外
 - sync.fetch(id)でデータを取得する
 - attributes.set()で反映
 
@@ -1054,9 +1054,9 @@ export class User {
       })
 ```
 
-ということでuser.set()を呼び出せばいい
+ということで user.set()を呼び出せばいい
 
-同様に、getもuser.get()をattribute.get()の代わりに呼び出す
+同様に、get も user.get()を attribute.get()の代わりに呼び出す
 
 ```TypeScript
 export class User {
@@ -1108,11 +1108,10 @@ user.fetch();
 
 他実装してみて、全体
 
-
 ```TypeScript
 // User.ts
-// 
-// 
+//
+//
 import { Eventing } from './Eventing';
 import { Sync } from './Sync';
 import { Attributes } from './Attributes';
@@ -1156,6 +1155,18 @@ export class User {
         this.events.trigger('change');
     }
 
+    fetch(): void {
+        const id = this.get('id');
+
+        if(typeof id !== 'number') {
+            throw new Error('Cannot fetch without an id');
+        }
+
+        this.sync.fetch(id).then((response: AxiosResponse): void => {
+            this.set(response.data)
+        })
+    }
+
     save(): void {
         this.sync
             .save(this.attributes.getAll())
@@ -1171,7 +1182,7 @@ export class User {
 
 
 // Eventing.ts
-// 
+//
 // interface UserProps {
     id?: number;
     name?: string;
@@ -1201,7 +1212,7 @@ export class Eventing {
 }
 
 // Attributes.ts
-// 
+//
 // import { UserProps } from './User';
 
 export class Attributes<T> {
@@ -1223,8 +1234,8 @@ export class Attributes<T> {
 }
 
 // Sync.ts
-// 
-// 
+//
+//
 import axios, { AxiosPromise } from 'axios';
 
 interface HasId {
@@ -1260,33 +1271,301 @@ export class Sync<T extends HasId> {
 
 いかに`User`特化から脱却するのかを今後学ぶ...
 
-
 ## Composition vs. Inheritance ...again
 
 今のところ`User`クラスは
 
 - ハードコーディング
-- interfaceを使っていない
+- interface を使っていない
 
 などかなり硬直的
 
-
-Eventing, Sync, Attributesはすべてクラス内部でインスタンス化する
+Eventing, Sync, Attributes はすべてクラス内部でインスタンス化する
 
 ハードコーディングな要素である
 
 これを交換可能なものにしたい
 
-
 また、
 
-たとえば`BlogPost`というclassを作るときに
+たとえば`BlogPost`という class を作るときに
 
-`User`のgetやsaveなどのメソッドを再構築することなく同じように使えるようにしたい
-
+`User`の get や save などのメソッドを再構築することなく同じように使えるようにしたい
 
 なので、
 
 抽象的なクラス`Model`を構築し、
 
 今後は`User`はこの`Model`を継承する
+
+```TypeScript
+import { AxiosPromise, AxiosResponse } from 'axios';
+
+interface ModelAttributes<T> {
+    set(value: T): void;
+    getAll(): T;
+    get<K extends keyof T>(key: K): T[K];
+}
+
+interface Sync<T> {
+    fetch(id: number): AxiosPromise;
+    save(data: T): AxiosPromise;
+}
+
+interface Events {
+    on(eventName: string, callback: () => void): void;
+    trigger(eventName: string): void
+}
+
+interface HasId {
+    id?: number;
+}
+
+export class Model<T extends HasId> {
+    constructor(
+        private attributes: ModelAttributes<T>,
+        private events: Events,
+        private sync: Sync<T>
+    ) {}
+
+    get on() {
+        return this.events.on;
+    }
+
+    get trigger() {
+        return this.events.trigger;
+    }
+
+    get get() {
+        return this.attributes.get;
+    }
+
+    set(update: T): void {
+        this.attributes.set(update);
+        this.events.trigger('change');
+    }
+
+    fetch(): void {
+        const id = this.get('id');
+
+        if(typeof id !== 'number') {
+            throw new Error('Cannot fetch without an id');
+        }
+
+        this.sync.fetch(id).then((response: AxiosResponse): void => {
+            this.set(response.data)
+        })
+    }
+
+
+    save(): void {
+        this.sync
+            .save(this.attributes.getAll())
+            .then((response: AxiosResponse) => {
+                console.log(response);
+                this.events.trigger('save');
+            })
+            .catch((err) => {
+                this.events.trigger('error');
+            });
+    }
+}
+
+// User.ts
+
+import { Eventing } from './Eventing';
+import { ApiSync } from './ApiSync';
+import { Attributes } from './Attributes';
+import { AxiosResponse } from 'axios';
+import { Model } from './Model';
+
+export interface UserProps {
+    id?: number;
+    name?: string;
+    age?: number;
+}
+
+const rootUrl: string = 'http://localhost:3000/users';
+
+export class User extends Model<UserProps> {
+    static buildUser(attrs: UserProps): User {
+        return new User(
+            new Attributes<UserProps>(attrs),
+            new Eventing(),
+            new ApiSync<UserProps>(rootUrl)
+        );
+    }
+}
+```
+
+#### 静的メソッド(ファクトリーメソッド)
+
+静的メソッドでインスタンスを生成するのと
+
+コンストラクタで生成するのと何が違うんだい？
+
+それはただ`User`にファクトリーメソッドを持たせたいというだけ
+
+static メソッドは`User`インスタンスのメソッドにはならないけど
+
+`User`クラスのメソッドではあるので
+
+自身を生成する関数を自身で持たせると都合がいい場合がある
+
+ただそれだけの話
+
+またあとから拡張できる利点もある
+
+```TypeScript
+export class User extends Model<UserProps> {
+    static buildUser(attrs: UserProps): User {
+        return new User(
+            new Attributes<UserProps>(attrs),
+            new Eventing(),
+            new ApiSync<UserProps>(rootUrl)
+        );
+    }
+
+    // ことなるインスタンスからなるUser
+    static buildAwesomeUser(attrs: UserProps): User {
+        return new User(
+            new Attributes<UserProps>(attrs),
+            new MoreEventing(),
+            new ThridPartySync<UserProps>(rootUrl)
+        );
+    }
+}
+```
+
+上記のように少し違う User も生成するためのメソッドを追加でき、
+
+かつファクトリーメソッド群を`User`にまとめられる
+
+## fetch()で必須な id が事前にわからない時
+
+前提としてそもそもバックエンドにどんな id があるのがわからないという方が当然でしょう
+
+それをどうやって実現するか
+
+Collection というユーザデータを保存するクラスをつくる
+
+```TypeScript
+// Collection.ts
+// User特価なままな場合
+import axios, { AxiosResponse } from "axios";
+import { Eventing } from "./Eventing";
+import { User, UserProps } from "./User";
+
+export class Collection {
+    models: User[] = [];
+    events: Eventing = new Eventing();
+
+    constructor(private rootUrl: string) {}
+
+    get on() {
+        return this.events.on;
+    }
+
+    get trigger() {
+        return this.events.trigger;
+    }
+
+    fetch(): void {
+        axios.get(this.rootUrl)
+        .then((response: AxiosResponse) => {
+            response.data.forEach((value: UserProps) => {
+                // ここでユーザデータすべて取得して
+                // modelsへユーザデータを保存する
+                const user = User.buildUser(value);
+                this.models.push(user);
+            })
+        })
+    }
+}
+
+// USAGE
+// const collection = new Collection('http://localhost:3000/users');
+// collection.on('change', () => {
+//     console.log(collection);
+// });
+// collection.fetch();
+```
+
+このままだと`User`と`UserProps`ありきのクラスだと再利用性ないので
+
+```TypeScript
+export class Collection<T, K> {
+    models: T[] = [];
+    events: Eventing = new Eventing();
+
+    constructor(private rootUrl: string) {}
+
+    get on() {
+        return this.events.on;
+    }
+
+    get trigger() {
+        return this.events.trigger;
+    }
+
+    fetch(): void {
+        axios.get(this.rootUrl)
+        .then((response: AxiosResponse) => {
+            response.data.forEach((value: K) => {
+                // いまだ...
+                // Userのメソッドありき
+                const user = User.buildUser(value);
+                this.models.push(user);
+            })
+        })
+    }
+}
+```
+
+ということで、collection のインスタンスを作成するときにファクトリメソッドを渡す仕様にする
+
+要はジェネリック型`K`の値を取得してジェネリック型`T`のものを返すメソッドになる
+
+なので
+
+```TypeScript
+export class Collection<T, K> {
+    models: T[] = [];
+    events: Eventing = new Eventing();
+
+    constructor(
+        private rootUrl: string,
+        private deserialize: (json: K) => T
+        ) {}
+
+    // ...
+
+    fetch(): void {
+        axios.get(this.rootUrl)
+        .then((response: AxiosResponse) => {
+            response.data.forEach((value: K) => {
+                this.models.push(this.deserialize(value));
+            })
+        })
+    }
+}
+```
+
+```TypeScript
+export class User extends Model<UserProps> {
+    static buildUser(attrs: UserProps): User {
+        return new User(
+            new Attributes<UserProps>(attrs),
+            new Eventing(),
+            new ApiSync<UserProps>(rootUrl)
+        );
+    }
+
+    static buildCollection(): Collection<User, UserProps> {
+        return new Collection<User, UserProps> (
+            rootUrl,
+            (json: UserProps) => User.buildUser(json)
+        );
+    }
+}
+```
