@@ -1569,3 +1569,76 @@ export class User extends Model<UserProps> {
     }
 }
 ```
+
+
+## View
+
+ユーザ情報の表示、編集が可能なHTMLを生成する
+
+
+- いずれのviewもHTMLを生成する
+- HTMLはネストできるようにしなくてはならない
+- ユーザイベントをコントロールできなくてはならない
+- viewとmodelは蜜結合になるだろう
+- ビューによって生成されたHTMLにアクセスして、特定の要素を取得できる必要があります。
+
+そんなViewを作るよ
+
+`UserEdit`, `UserShow`, `UserForm`
+
+
+### `UserForm` at begin
+
+```TypeScript
+// こんな機能をもつよ
+parent: Element;
+template(): string;
+render(): void;
+```
+ひとまず
+
+```TypeScript
+export class UserForm {
+    constructor(public parent: Element) {}
+
+    template(): string {
+        return `
+            <div>
+                <h1>User Form</h1>
+                <input />
+            </div>
+        `;
+    }
+
+    render(): void {
+        const templateElement = document.createElement('template');
+        templateElement.innerHTML = this.template();
+
+        this.parent.append(templateElement.content);
+    }
+}
+```
+
+こんな感じ
+
+#### イベントマップでイベントハンドラのバインディング
+
+たとえば、render()した要素にイベントハンドラをつけたいとき
+
+- render()が呼び出される
+- template()からテンプレートを取得する
+- `template`要素へ取得したテンプレートを挿入する
+- DOMへ生成した`template`を挿入する
+
+- どこかのタイミングでそれらの要素へイベントハンドラをバインドする
+
+問題はこういう生成手順を踏むときに、いつイベントハンドラを取り付ければいいのだろうという点
+
+上記の手順だと、通常レンダリングが完了してDOMとなってから
+
+そのDOMを取得してイベントハンドラをつけることになるのかな
+
+となると
+
+レンダリング**後**が普通かな
+
