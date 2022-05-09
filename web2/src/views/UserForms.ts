@@ -5,9 +5,14 @@ export class UserForm {
         console.log('button clicked');
     }
 
+    onHeadHover(): void {
+        console.log('Header hovered');
+    }
+
     eventsMap(): { [key: string]: () => void } {
         return {
             'click:button': this.onButtonClick,
+            'hover:h1': this.onHeadHover,
         };
     }
 
@@ -17,6 +22,7 @@ export class UserForm {
         for (let eventKey in eventsMap) {
             const [eventName, selector] = eventKey.split(':');
 
+            // fragment DOMに対してqsaする
             fragment.querySelectorAll(selector).forEach((element) => {
                 element.addEventListener(eventName, eventsMap[eventKey]);
             });

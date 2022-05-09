@@ -70,8 +70,8 @@ $ npm i -D parcel
 ```html
 <!-- index.html -->
 <body>
-  <link rel="stylesheet" href="./src/styles/style.css" />
-  <script type="module" src="./src/index.ts"></script>
+    <link rel="stylesheet" href="./src/styles/style.css" />
+    <script type="module" src="./src/index.ts"></script>
 </body>
 ```
 
@@ -570,8 +570,8 @@ $ tsc --init
 
 `const {id} = data;`の`id`の型が取りうる値はこのコンパイラオプションで異なる
 
-- `strict: true`で`number | undeifned`
-- `strict: false`で`number`
+-   `strict: true`で`number | undeifned`
+-   `strict: false`で`number`
 
 である
 
@@ -1005,9 +1005,9 @@ User was changed. We probably need to change some HTML
 
 attributes.get()と Sync.fetch()を呼び出す
 
-- id なしだと例外
-- sync.fetch(id)でデータを取得する
-- attributes.set()で反映
+-   id なしだと例外
+-   sync.fetch(id)でデータを取得する
+-   attributes.set()で反映
 
 ```TypeScript
 import axios, { AxiosPromise } from 'axios';
@@ -1275,8 +1275,8 @@ export class Sync<T extends HasId> {
 
 今のところ`User`クラスは
 
-- ハードコーディング
-- interface を使っていない
+-   ハードコーディング
+-   interface を使っていない
 
 などかなり硬直的
 
@@ -1570,22 +1570,19 @@ export class User extends Model<UserProps> {
 }
 ```
 
-
 ## View
 
-ユーザ情報の表示、編集が可能なHTMLを生成する
+ユーザ情報の表示、編集が可能な HTML を生成する
 
+-   いずれの view も HTML を生成する
+-   HTML はネストできるようにしなくてはならない
+-   ユーザイベントをコントロールできなくてはならない
+-   view と model は蜜結合になるだろう
+-   ビューによって生成された HTML にアクセスして、特定の要素を取得できる必要があります。
 
-- いずれのviewもHTMLを生成する
-- HTMLはネストできるようにしなくてはならない
-- ユーザイベントをコントロールできなくてはならない
-- viewとmodelは蜜結合になるだろう
-- ビューによって生成されたHTMLにアクセスして、特定の要素を取得できる必要があります。
-
-そんなViewを作るよ
+そんな View を作るよ
 
 `UserEdit`, `UserShow`, `UserForm`
-
 
 ### `UserForm` at begin
 
@@ -1595,6 +1592,7 @@ parent: Element;
 template(): string;
 render(): void;
 ```
+
 ひとまず
 
 ```TypeScript
@@ -1621,24 +1619,84 @@ export class UserForm {
 
 こんな感じ
 
-#### イベントマップでイベントハンドラのバインディング
+#### Event Binding: template と content
+
+参考：
+
+https://developer.mozilla.org/ja/docs/Web/HTML/Element/template
+
+https://developer.mozilla.org/ja/docs/Web/API/HTMLTemplateElement/content
 
 たとえば、render()した要素にイベントハンドラをつけたいとき
 
-- render()が呼び出される
-- template()からテンプレートを取得する
-- `template`要素へ取得したテンプレートを挿入する
-- DOMへ生成した`template`を挿入する
+-   render()が呼び出される
+-   template()からテンプレートを取得する
+-   `template`要素へ取得したテンプレートを挿入する
+-   DOM へ生成した`template`を挿入する
 
-- どこかのタイミングでそれらの要素へイベントハンドラをバインドする
+-   どこかのタイミングでそれらの要素へイベントハンドラをバインドする
 
 問題はこういう生成手順を踏むときに、いつイベントハンドラを取り付ければいいのだろうという点
 
-上記の手順だと、通常レンダリングが完了してDOMとなってから
+上記の手順だと、通常レンダリングが完了して DOM となってから
 
-そのDOMを取得してイベントハンドラをつけることになるのかな
+その DOM を取得してイベントハンドラをつけることになるのかな
 
 となると
 
 レンダリング**後**が普通かな
+
+でもそうなるとレンダリング完了してから毎回あらためて DOM を取得してイベントハンドラをつけるのはなかなか一苦労である
+
+その DOM があるのか確認するのも一苦労だろう
+
+そこで
+
+<template>と`HTMLTemplateElement.content`を使う
+
+この 2 つを使うと、
+
+「あとから HTML を動的に挿入する・操作する」ということができる
+
+#### <template>
+
+https://ja.javascript.info/template-element
+
+> 組み込みの <template> 要素は HTML マークアップテンプレートの格納場所として機能します。**ブラウザはこれらのコンテンツは無視します(構文のチェックのみ行います)が、JavaScript ではアクセスし、他の要素を作るのに使うことができます。**
+
+> template は HTML マークアップを格納する目的で、HTML 上に見えない要素を作成することができます。template は何が特別なのでしょうか？
+
+> 第一に、template 内のコンテンツは、通常適切な囲みタグを必要とする場合でも有効なHTMLになります。
+つまり後出し HTML を保持しておけますという話らしい
+
+パーサは`template`を描写せず、その内容の有効性だけを検証してくれる
+
+この`template`の内容は後で操作・動的に挿入することができる
+
+(`template`を挿入することができるという意味ではない)
+
+つまり、動的にHTMLを挿入するときに
+
+`template`をつかうととっても都合がいいというわけである
+
+> テンプレートのコンテンツは、content プロパティで DocumentFragment – 特別な種類の DOM ノード – として利用できます。
+
+> ある特別な性質(どこかに挿入するとき、その “子” が挿入される)を除くと、他の DOM ノードたちと同じように扱うことができます。
+
+
+たとえば、
+
+
+- templateの内容は`document.querySelector`等で取得できる
+- templateの属性`content`を通して読み取り専用の`DocumentFragment`にアクセスすることができる
+- `DocumentFragment`から`Node`へアクセスしたり`querySelector`等で要素へアクセスできる
+- それらアクセスした要素を操作したりして要素として生成してDOMへ挿入することができる
+
+これを使うとどうイベント・バインドに役立つかというと、
+
+レンダリング前にイベントバインドできるのである
+
+注意：
+
+- 直接`content`にアクセスする行為は危険である
 
