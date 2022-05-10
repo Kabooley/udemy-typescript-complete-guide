@@ -1,18 +1,31 @@
+import { User } from '../models/User';
+
 export class UserForm {
-    constructor(public parent: Element) {}
-
-    onButtonClick(): void {
-        console.log('button clicked');
+    constructor(public parent: Element, public model: User) {
+        this.bindModel();
     }
 
-    onHeadHover(): void {
-        console.log('Header hovered');
+    bindModel(): void {
+        this.model.on('change', () => {
+            this.render();
+        });
     }
+
+    onSetAgeClick = (): void => {
+        this.model.setRandomAge();
+    };
+
+    onSetNameClick = (): void => {
+        // 一旦親要素から取得する
+        const input: HTMLInputElement = this.parent.querySelector('input');
+        const name: string = input.value;
+        this.model.set({ name });
+    };
 
     eventsMap(): { [key: string]: () => void } {
         return {
-            'click:button': this.onButtonClick,
-            'hover:h1': this.onHeadHover,
+            'click:.set-age': this.onSetAgeClick,
+            'click:.change-name': this.onSetNameClick,
         };
     }
 
@@ -33,12 +46,18 @@ export class UserForm {
         return `
             <div>
                 <h1>User Form</h1>
+                <div>User name: ${this.model.get('name')}</div>
+                <div>User age: ${this.model.get('age')}</div>
                 <input />
+                <button class="change-name">Change name</button>
+                <button class="set-age">set random age</button>
             </div>
         `;
     }
 
     render(): void {
+        this.parent.innerHTML = '';
+
         const templateElement = document.createElement('template');
         templateElement.innerHTML = this.template();
 
