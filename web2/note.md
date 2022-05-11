@@ -1837,3 +1837,302 @@ render(): void {
     this.parent.inerHTML = '';
 }
 ```
+
+
+## 再掲 DOM 取得と null チェック
+
+`querySelector`は null を返す可能性がありますね
+
+型が union になる可能性があるときは、タイプガードを必ずつけましょう
+
+```TypeScript
+// UserForm.ts
+
+    onSetNameClick = (): void => {
+        // input HTMLInputElement | null
+        const input: HTMLInputElement = this.parent.querySelector('input');
+        // inputはnullかもしれない
+        const name: string = input.value;
+        this.model.set({ name });
+    };
+
+    // 改善後
+    onSetNameClick = (): void => {
+        // input HTMLInputElement | null
+        const input: HTMLInputElement = this.parent.querySelector('input');
+        // type guard
+        if( input ) {
+            const name: string = input.value;
+            this.model.set({ name });
+        }
+
+    };
+
+// index.ts
+// 同様に
+
+const root: HTMLElement = document.getElementById('root');
+if(root) {
+    const userForm = new UserForm(root, user);
+    userForm.render();
+}
+else {
+    throw new Error('Root element not found');
+}
+
+```
+
+## UserForm を再利用可能にリファクタリングする
+
+UserForm が再利用的になったらプロジェクトのほうで利用できるかも
+
+元の状態
+
+```TypeScript
+import { User } from '../models/User';
+
+export class UserForm {
+    constructor(public parent: Element, public model: User) {
+        this.bindModel();
+    }
+
+    bindModel(): void {
+        this.model.on('change', () => {
+            this.render();
+        });
+    }
+
+    onSetAgeClick = (): void => {
+        this.model.setRandomAge();
+    };
+
+    onSetNameClick = (): void => {
+        const input: HTMLInputElement = this.parent.querySelector('input');
+        const name: string = input.value;
+        this.model.set({ name });
+    };
+
+    eventsMap(): { [key: string]: () => void } {
+        return {
+            'click:.set-age': this.onSetAgeClick,
+            'click:.change-name': this.onSetNameClick,
+        };
+    }
+
+    bindEvents(fragment: DocumentFragment): void {
+        const eventsMap = this.eventsMap();
+
+        for (let eventKey in eventsMap) {
+            const [eventName, selector] = eventKey.split(':');
+            fragment.querySelectorAll(selector).forEach((element) => {
+                element.addEventListener(eventName, eventsMap[eventKey]);
+            });
+        }
+    }
+
+    template(): string {
+        return `
+            <div>
+                <h1>User Form</h1>
+                <div>User name: ${this.model.get('name')}</div>
+                <div>User age: ${this.model.get('age')}</div>
+                <input />
+                <button class="change-name">Change name</button>
+                <button class="set-age">set random age</button>
+            </div>
+        `;
+    }
+
+    render(): void {
+        this.parent.innerHTML = '';
+
+        const templateElement = document.createElement('template');
+        templateElement.innerHTML = this.template();
+
+        this.bindEvents(templateElement.content);
+
+        this.parent.append(templateElement.content);
+    }
+}
+
+```
+
+```TypeScript
+// View.ts
+import { User } from '../models/User';
+
+export abstract class View {
+    constructor(public parent: Element, public model: User) {
+        this.bindModel();
+    }
+
+    abstract eventsMap(): { [key: string]: () => void };
+    abstract template(): string;
+
+
+    bindModel(): void {
+        this.model.on('change', () => {
+            this.render();
+        });
+    }
+
+    bindEvents(fragment: DocumentFragment): void {
+        const eventsMap = this.eventsMap();
+
+        for (let eventKey in eventsMap) {
+            const [eventName, selector] = eventKey.split(':');
+            fragment.querySelectorAll(selector).forEach((element) => {
+                element.addEventListener(eventName, eventsMap[eventKey]);
+            });
+        }
+    }
+
+    render(): void {
+        this.parent.innerHTML = '';
+
+        const templateElement = document.createElement('template');
+        templateElement.innerHTML = this.template();
+
+        this.bindEvents(templateElement.content);
+
+        this.parent.append(templateElement.content);
+    }
+}
+
+// UserForm.ts
+import { User } from '../models/User';
+import { View } from './View';
+
+export class UserForm extends View {
+
+    onSetAgeClick = (): void => {
+        this.model.setRandomAge();
+    };
+
+    onSetNameClick = (): void => {
+        const input: HTMLInputElement = this.parent.querySelector('input');
+        const name: string = input.value;
+        this.model.set({ name });
+    };
+
+    eventsMap(): { [key: string]: () => void } {
+        return {
+            'click:.set-age': this.onSetAgeClick,
+            'click:.change-name': this.onSetNameClick,
+        };
+    }
+
+    bindEvents(fragment: DocumentFragment): void {
+        const eventsMap = this.eventsMap();
+
+        for (let eventKey in eventsMap) {
+            const [eventName, selector] = eventKey.split(':');
+            fragment.querySelectorAll(selector).forEach((element) => {
+                element.addEventListener(eventName, eventsMap[eventKey]);
+            });
+        }
+    }
+
+    template(): string {
+        return `
+            <div>
+                <h1>User Form</h1>
+                <div>User name: ${this.model.get('name')}</div>
+                <div>User age: ${this.model.get('age')}</div>
+                <input />
+                <button class="change-name">Change name</button>
+                <button class="set-age">set random age</button>
+            </div>
+        `;
+    }
+}
+```
+
+## Viewの汎用化へのアプロートその１：interface
+
+Genericsを導入すると、`this.model.on`ってなに？ってなる
+
+いつものことですが、interfaceを足す
+
+
+
+```TypeScript
+export abstract class View<T> {
+    constructor(public parent: Element, public model: T) {
+        this.bindModel();
+    }
+
+    // ...
+
+    bindModel(): void {
+        // NOTE: ここ
+        this.model.on('change', () => {
+            this.render();
+        });
+    }
+
+    // ...
+}
+
+// interfaceを足す
+interface ModelForView {
+    on(eventName: string, callback: () => void): void;
+}
+
+// Tの継承元として登録する
+export abstract class View<T extends ModelForView> {
+    constructor(public parent: Element, public model: T) {
+        this.bindModel();
+    }
+    // ...
+}
+
+// Viewに渡すのは今のところ`User`のインスタンスである
+class UserForm extends View<User> {
+    // ...
+}
+```
+
+UserのインスタンスはModelForViewを満たす
+
+interfaceを足す作戦は、あとから結局プロパティ分だけ足しまくる必要が出てくるので最善の策ではない
+
+## Viewの汎用化へのアプロートその２：継承
+
+This way is better.
+
+
+```TypeScript
+import { Model } from '../model/Model';
+
+export abstract class View <T extends Model> {
+
+}
+```
+`Model`というinterfaceはGenericsを含むので次のようにしないといけないということになる
+
+```TypeScript
+// THIS IS WIRED!!
+export abstract class View <T extends Model<UserProps>> {
+}
+```
+
+これはこう書く
+
+型引数を使う
+
+```TypeScript
+export abstract class View <T extends Model<K>, K> {
+}
+
+// USAGE
+export class UserForm extends View<User, UserProps> {
+
+}
+```
+
+この導入の仕方ならば、TypeScriptはどこを参照すればいいのか明確になったので
+
+`this.model.on`などの継承メソッドがどこを参照しているのか確実にわかっている
+
+

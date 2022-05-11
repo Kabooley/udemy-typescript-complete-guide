@@ -1,14 +1,25 @@
-import { User } from '../models/User';
+import { User, UserProps } from '../models/User';
+import { View } from './View';
 
-export class UserForm {
-    constructor(public parent: Element, public model: User) {
-        this.bindModel();
+/**
+ * Viewから継承する
+ * 
+ * User編集画面に特化した内容だけ定義する
+ * 
+ * Viewとして出力するtemplateもここで定義する
+ * */ 
+export class UserForm extends View<User, UserProps> {
+
+    eventsMap(): { [key: string]: () => void } {
+        return {
+            'click:.set-age': this.onSetAgeClick,
+            'click:.change-name': this.onSetNameClick,
+            'click:.save-model': this.onSaveClick
+        };
     }
 
-    bindModel(): void {
-        this.model.on('change', () => {
-            this.render();
-        });
+    onSaveClick = (): void => {
+        this.model.save();
     }
 
     onSetAgeClick = (): void => {
@@ -16,56 +27,20 @@ export class UserForm {
     };
 
     onSetNameClick = (): void => {
-        // 一旦親要素から取得する
         const input: HTMLInputElement = this.parent.querySelector('input');
         const name: string = input.value;
         this.model.set({ name });
     };
 
-    eventsMap(): { [key: string]: () => void } {
-        return {
-            'click:.set-age': this.onSetAgeClick,
-            'click:.change-name': this.onSetNameClick,
-        };
-    }
-
-    bindEvents(fragment: DocumentFragment): void {
-        const eventsMap = this.eventsMap();
-
-        for (let eventKey in eventsMap) {
-            const [eventName, selector] = eventKey.split(':');
-
-            // fragment DOMに対してqsaする
-            fragment.querySelectorAll(selector).forEach((element) => {
-                element.addEventListener(eventName, eventsMap[eventKey]);
-            });
-        }
-    }
 
     template(): string {
         return `
             <div>
-                <h1>User Form</h1>
-                <div>User name: ${this.model.get('name')}</div>
-                <div>User age: ${this.model.get('age')}</div>
-                <input />
+                <input placeholder="${this.model.get('name')}"/>
                 <button class="change-name">Change name</button>
                 <button class="set-age">set random age</button>
+                <button class="set-model">Save</button>
             </div>
         `;
-    }
-
-    render(): void {
-        this.parent.innerHTML = '';
-
-        const templateElement = document.createElement('template');
-        templateElement.innerHTML = this.template();
-
-        // NOTE: ここでイベントハンドラを設置する
-        this.bindEvents(templateElement.content);
-
-        // `content`はDocumentFragment`型と呼ばれる標準の型である
-        // これは参照を返すそうな...
-        this.parent.append(templateElement.content);
     }
 }
