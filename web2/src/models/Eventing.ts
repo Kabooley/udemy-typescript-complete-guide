@@ -1,9 +1,3 @@
-interface UserProps {
-    id?: number;
-    name?: string;
-    age?: number;
-}
-
 // 今のところ、引数なし戻り値なしの関数しか受け付けない
 type Callback = () => void;
 
