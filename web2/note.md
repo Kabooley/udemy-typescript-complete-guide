@@ -1666,8 +1666,8 @@ https://ja.javascript.info/template-element
 
 > template は HTML マークアップを格納する目的で、HTML 上に見えない要素を作成することができます。template は何が特別なのでしょうか？
 
-> 第一に、template 内のコンテンツは、通常適切な囲みタグを必要とする場合でも有効なHTMLになります。
-つまり後出し HTML を保持しておけますという話らしい
+> 第一に、template 内のコンテンツは、通常適切な囲みタグを必要とする場合でも有効な HTML になります。
+> つまり後出し HTML を保持しておけますという話らしい
 
 パーサは`template`を描写せず、その内容の有効性だけを検証してくれる
 
@@ -1675,7 +1675,7 @@ https://ja.javascript.info/template-element
 
 (`template`を挿入することができるという意味ではない)
 
-つまり、動的にHTMLを挿入するときに
+つまり、動的に HTML を挿入するときに
 
 `template`をつかうととっても都合がいいというわけである
 
@@ -1683,14 +1683,12 @@ https://ja.javascript.info/template-element
 
 > ある特別な性質(どこかに挿入するとき、その “子” が挿入される)を除くと、他の DOM ノードたちと同じように扱うことができます。
 
-
 たとえば、
 
-
-- templateの内容は`document.querySelector`等で取得できる
-- templateの属性`content`を通して読み取り専用の`DocumentFragment`にアクセスすることができる
-- `DocumentFragment`から`Node`へアクセスしたり`querySelector`等で要素へアクセスできる
-- それらアクセスした要素を操作したりして要素として生成してDOMへ挿入することができる
+-   template の内容は`document.querySelector`等で取得できる
+-   template の属性`content`を通して読み取り専用の`DocumentFragment`にアクセスすることができる
+-   `DocumentFragment`から`Node`へアクセスしたり`querySelector`等で要素へアクセスできる
+-   それらアクセスした要素を操作したりして要素として生成して DOM へ挿入することができる
 
 これを使うとどうイベント・バインドに役立つかというと、
 
@@ -1698,8 +1696,7 @@ https://ja.javascript.info/template-element
 
 注意：
 
-- 直接`content`にアクセスする行為は危険である
-
+-   直接`content`にアクセスする行為は危険である
 
 ## Adding Model Propeties
 
@@ -1794,19 +1791,18 @@ export class UserForm {
 
 いまのところ`button.set-age`には`onSetAgeClick`と`onButtonClick`の両方がバインドされる
 
+## Model の変更に反応して再レンダリングさせる
 
-## Modelの変更に反応して再レンダリングさせる
-
-先のsetRandomAgeでageが変更されたらその変更をHTMLに反映させるために
+先の setRandomAge で age が変更されたらその変更を HTML に反映させるために
 
 再レンダリングさせる
 
 現状：
 
-- UserFormで生成するbutton.set-ageをclick
-- User.setRandomAge()が乱数生成であらたなageをsetする
+-   UserForm で生成する button.set-age を click
+-   User.setRandomAge()が乱数生成であらたな age を set する
 
-Model.set()にはthis.events.trigger('change')があるので
+Model.set()には this.events.trigger('change')があるので
 
 ここで再レンダリングをさせる
 
@@ -1827,7 +1823,7 @@ export class UserForm {
 }
 ```
 
-このままだとtemplateを何個も生成してしまうので前回レンダー分を毎回消すようにする
+このままだと template を何個も生成してしまうので前回レンダー分を毎回消すようにする
 
 ```TypeScript
 // UserForm.ts
@@ -1837,7 +1833,6 @@ render(): void {
     this.parent.inerHTML = '';
 }
 ```
-
 
 ## 再掲 DOM 取得と null チェック
 
@@ -2048,13 +2043,11 @@ export class UserForm extends View {
 }
 ```
 
-## Viewの汎用化へのアプロートその１：interface
+## View の汎用化へのアプロートその１：interface
 
-Genericsを導入すると、`this.model.on`ってなに？ってなる
+Generics を導入すると、`this.model.on`ってなに？ってなる
 
-いつものことですが、interfaceを足す
-
-
+いつものことですが、interface を足す
 
 ```TypeScript
 export abstract class View<T> {
@@ -2093,14 +2086,13 @@ class UserForm extends View<User> {
 }
 ```
 
-UserのインスタンスはModelForViewを満たす
+User のインスタンスは ModelForView を満たす
 
-interfaceを足す作戦は、あとから結局プロパティ分だけ足しまくる必要が出てくるので最善の策ではない
+interface を足す作戦は、あとから結局プロパティ分だけ足しまくる必要が出てくるので最善の策ではない
 
-## Viewの汎用化へのアプロートその２：継承
+## View の汎用化へのアプロートその２：継承
 
 This way is better.
-
 
 ```TypeScript
 import { Model } from '../model/Model';
@@ -2109,7 +2101,8 @@ export abstract class View <T extends Model> {
 
 }
 ```
-`Model`というinterfaceはGenericsを含むので次のようにしないといけないということになる
+
+`Model`という interface は Generics を含むので次のようにしないといけないということになる
 
 ```TypeScript
 // THIS IS WIRED!!
@@ -2131,8 +2124,225 @@ export class UserForm extends View<User, UserProps> {
 }
 ```
 
-この導入の仕方ならば、TypeScriptはどこを参照すればいいのか明確になったので
+この導入の仕方ならば、TypeScript はどこを参照すればいいのか明確になったので
 
 `this.model.on`などの継承メソッドがどこを参照しているのか確実にわかっている
 
+## View の再利用性を保ちながら表示するものを増やす
 
+やること：
+
+`UserEdit`, `UserShow`を表示させる
+
+ただし、現在のありものを再利用しながら
+
+-   New Propperty: `regions`
+
+    key: Element の key,
+    value: 表示させたい Element でここに、UserShow, UserEdit を含む
+
+-   New Method: `regionsMap()`
+
+    Override される。
+    UserEdit, UserShow はこのメソッドをオーバーライドする
+
+-   New Method: `mapRegions()`
+
+    regiosnMap を読み取って region へ格納する
+
+```TypeScript
+import { Model } from '../models/Model';
+
+
+/***
+ * Modelから継承する
+ *
+ * Modelに継承元がひつようなので型引数Kが必須である
+ *
+ * template内容は継承クラスで定義する
+ *
+ * イベントハンドラ関数も継承クラスで定義する
+ *
+ * */
+ export abstract class View<T extends Model<K>, K> {
+    // NOTE: new added
+    regions: { [key: string]: Element } = {};
+
+
+    constructor(public parent: Element, public model: T) {
+        this.bindModel();
+    }
+
+
+    abstract template(): string;
+    // NOTE: commented out
+    // abstract eventsMap(): { [key: string]: () => void };
+    // abstract regionsMap(): { [key: string]: string };
+
+    // NOTE: Remove abstracts
+    eventsMap(): { [key: string]: () => void } {
+        return {};
+    }
+
+    // NOTE: new method
+    regionsMap(): { [key: string]: string } {
+        return {};
+    }
+
+
+    bindModel(): void {
+        this.model.on('change', () => {
+            this.render();
+        });
+    }
+
+    bindEvents(fragment: DocumentFragment): void {
+        const eventsMap = this.eventsMap();
+
+        for (let eventKey in eventsMap) {
+            const [eventName, selector] = eventKey.split(':');
+            fragment.querySelectorAll(selector).forEach((element) => {
+                element.addEventListener(eventName, eventsMap[eventKey]);
+            });
+        }
+    }
+
+    // NOTE: new added.
+    mapRegions(fragment: DocumentFragment): void {
+        const regionMap = this.regionsMap();
+
+        for(let key in regionMap) {
+            const selector = this.regionsMap[key];
+            const element = fragment.querySelector(selector);
+            if(element) {
+                this.regions[key] = element;
+            }
+        }
+    }
+
+    render(): void {
+        this.parent.innerHTML = '';
+
+        const templateElement = document.createElement('template');
+        templateElement.innerHTML = this.template();
+
+        this.bindEvents(templateElement.content);
+        // NOTE: new added.
+        this.mapRegions(templateElement.content);
+
+        this.parent.append(templateElement.content);
+    }
+}
+```
+
+```TypeScript
+// UserEdit.ts
+
+import { View } from './View';
+import { User, UserProps } from '../models/User';
+
+export class UserEdit extends View<User, UserProps> {
+
+    // NOTE: new added.
+    regionsMap(): { [key: string]: Element } {
+        return {
+            userShow: '.user-show',
+            userForm: '.user-form'
+        }
+    }
+
+    template(): string {
+        return `
+            <div>
+                <div class="user-show"></div>
+                <div class="user-form"></div>
+            </div>
+        `;
+    }
+}
+```
+
+```TypeScript
+// index.ts
+import { UserEdit } from './views/UserEdit';
+import { User } from './models/User';
+
+const user = User.buildUser({ name: 'NAME', age: 111 });
+const root: HTMLElement = document.getElementById('root');
+if (root) {
+    const userEdit = new UserEdit(root, user);
+
+    userEdit.render();
+    console.log(userEdit);
+} else {
+    throw new Error('Root element cannot be found');
+}
+
+```
+
+#### ネスト表示させる
+
+```TypeScript
+import { Model } from '../models/Model';
+
+
+ export abstract class View<T extends Model<K>, K> {
+
+    //  ...
+
+    // ネスト表示させたいインスタンスのrender()メソッドをここで呼出す
+    onRender(): void {}
+
+    render(): void {
+        this.parent.innerHTML = '';
+
+        const templateElement = document.createElement('template');
+        templateElement.innerHTML = this.template();
+
+        this.bindEvents(templateElement.content);
+        this.mapRegions(templateElement.content);
+
+        this.onRender();
+        // onRednerで出力される要素を含めて、
+        // すべて最終的にroot以下へ出力させる
+        this.parent.append(templateElement.content);
+    }
+}
+```
+
+```TypeScript
+import { View } from './View';
+import { User, UserProps } from '../models/User';
+import { UserForm } from './UserForms';
+import { UserShow } from './UserShow';
+
+export class UserEdit extends View<User, UserProps> {
+    regionsMap(): { [key: string]: string } {
+        return {
+            userShow: '.user-show',
+            userForm: '.user-form',
+        };
+    }
+
+    // onRenderがあれば、
+    // 好きな順番にregionsに登録してある要素へtemplateを表示させることが出来る
+    // なので、ネストも可能
+    onRender(): void {
+        // regions.~を親要素としてそのもとにtemplateを出力する
+        new UserShow(this.regions.userShow, this.model).render();
+        new UserForm(this.regions.userForm, this.model).render();
+        // 最終的にすべての要素をroot以下に出力する
+    }
+
+    template(): string {
+        return `
+            <div>
+                <div class="user-show"></div>
+                <div class="user-form"></div>
+            </div>
+        `;
+    }
+}
+
+
+```
