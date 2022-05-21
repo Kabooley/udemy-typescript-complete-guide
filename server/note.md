@@ -139,3 +139,109 @@ interface RequestWithBody extends Request {
     body: { [key: string]: string | undefined };
 }
 ```
+
+## 222: Wiring Up Sessions
+
+```TypeScript
+// index.ts
+import express, { Request, Response } from 'express';
+import { router } from './routes/loginRoutes';
+import bodyParser from 'body-parser';
+import cookieSession from 'cookie-session';
+
+const app = express();
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieSession({ keys: ['lasdk'] }));
+app.use(router);
+
+app.listen(3000, () => {
+    console.log('Listening on port 3000');
+});
+
+
+// loginRoutes.ts
+import { Router, Request, Response } from "express";
+
+const router = Router();
+
+interface RequestWithBody extends Request {
+  body: { [key: string]: string | undefined };
+}
+
+router.get("/login", (req: RequestWithBody, res: Response) => {
+  res.send(`
+        <form method="POST">
+            <div>
+                <label>Email</label>
+                <input name="email" />
+            </div>
+            <div>
+                <label>Password</label>
+                <input name="password" type="password" />
+            </div>
+            <button>Submit</button>
+        </form>
+    `);
+});
+
+router.post("/login", (req: RequestWithBody, res: Response) => {
+  // NOTE: To read `body`, bodyParser is required.
+  const { email, password } = req.body;
+  if (
+    email &&
+    password &&
+    email === "sddsa@good.com" &&
+    password === "some-awesome-password"
+  ) {
+    req.session = { loggedIn: true };
+    res.redirect("/");
+  } else {
+    res.send("Invalid email or password");
+  }
+});
+
+export { router };
+```
+
+## 226~: A Closer Integration
+
+Expressをclassラッピングする
+
+TypeScriptとExpressの統合には困難が伴う
+
+npm packageの`ts-express-decoratoers`のようなものを実装してみる(参考にもなる)
+
+`ts-express-decorators`@Controller:
+
+https://www.npmjs.com/package/ts-express-decorators#create-your-first-controller
+
+ここで目にする`@Controller`などの`@`から始まるキーワードはデコレータと呼ばれる
+
+**decoratorはTypeScriptの機能である**
+
+
+#### プロトタイプチェーンの話との関連
+
+プロトタイプはそのオブジェクトに含まれるものではなくて
+
+継承元にあるものである
+
+プロトタイプはオブジェクトを生成した後でも追加し放題
+
+具体的に言うと、
+
+newしたあとのオブジェクトのプロトタイプがあるとして、
+
+継承元のオブジェクトにあと出しでメソッドを追加したら
+
+さっきnewしたオブジェクトもその後出しメソッドを使うことができる
+
+この辺はJavaScript特有の話で
+
+クラスからインスタンスができるのではなくて
+
+もとのオブジェクトを継承しているオブジェクトを生成しているだけなのである
+
+
+つまり、将来にわたってオブジェクトは変更されうるのである
