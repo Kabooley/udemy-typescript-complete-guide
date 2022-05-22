@@ -245,3 +245,101 @@ newしたあとのオブジェクトのプロトタイプがあるとして、
 
 
 つまり、将来にわたってオブジェクトは変更されうるのである
+
+#### Details of Decorator
+
+TypeScriptのDecoratorの話。
+
+JavaScriptにもDecoratorがあるらしい。
+
+JavaScriptのDecoratorは実験段階らしくTypeScriptにおいても同様である。
+
+
+https://www.typescriptlang.org/docs/handbook/decorators.html
+
+以下、TypeScriptのDecoratorの説明
+
+> TypeScriptとES6にクラスが導入されたことで、クラスとクラスメンバーの注釈付けまたは変更をサポートするための追加機能を必要とする特定のシナリオが存在するようになりました。
+
+> デコレータは、クラス宣言とメンバーのアノテーションとメタプログラミング構文の両方を追加する方法を提供します。デコレータはJavaScriptのステージ2の提案であり、TypeScriptの実験的な機能として利用できます。
+
+使うためには次のコマンドを
+
+```bash
+$ tsc --target ES5 --experimentalDecorators
+```
+
+理解のカギは、**デコレータの実行順序**にあるとのこと
+
+> デコレータは、クラス宣言、メソッド、アクセサ、プロパティ、またはパラメータにアタッチできる特別な種類の宣言です。デコレータは@expressionの形式を使用します。ここで、expressionは、装飾された宣言に関する情報を使用して実行時に呼び出される関数に評価される必要があります。 たとえば、デコレータ@sealedが与えられた場合、sealed関数を次のように記述できます。
+
+既存のclassやメソッドに追加機能を入れるようなものっぽい
+
+- Decorator Factory
+
+> デコレータを宣言に適用する方法をカスタマイズしたい場合は、デコレータファクトリを作成できます。デコレータファクトリは、実行時にデコレータによって呼び出される式を返す関数です。 デコレータファクトリは次のように記述できます。
+
+```TypeScript
+function color(value: string) {
+  // this is the decorator factory, it sets up
+  // the returned decorator function
+  return function (target) {
+    // this is the decorator
+    // do something with 'target' and 'value'...
+  };
+}
+```
+
+次の例が直感的かも
+
+```TypeScript
+function first() {
+  console.log("first(): factory evaluated");
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    console.log("first(): called");
+  };
+}
+ 
+function second() {
+  console.log("second(): factory evaluated");
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    console.log("second(): called");
+  };
+}
+ 
+class ExampleClass {
+  @first()
+  @second()
+  method() {}
+}
+
+// output order: 上から順番に＠呼出関数が評価される
+// その後その順番の下から上へ順番にreturnされた関数が呼び出される
+// 
+// first(): factory evaluated
+// second(): factory evaluated
+// second(): called
+// first(): called
+```
+
+つまり、クラスExampleClassのなかではひとまずデコレータを宣言して
+
+実際に呼び出される関数はfirst(), second()内で好きに定義できるという話である
+
+prototypeチェーンと何が違うの？
+
+```JavaScript
+// Prototype chain
+const ExampleClass = function() {
+    this.method = function() {};
+}
+
+ExampleClass.prototype.first = function() {
+    console.log("first(): called");
+}
+
+ExampleClass.prototype.second = function() {
+    console.log("second(): called");
+}
+```
+
