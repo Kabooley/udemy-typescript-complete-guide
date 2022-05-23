@@ -268,8 +268,15 @@ https://www.typescriptlang.org/docs/handbook/decorators.html
 ```bash
 $ tsc --target ES5 --experimentalDecorators
 ```
+とのこと
 
-理解のカギは、**デコレータの実行順序**にあるとのこと
+(TypeScriptの)デコレータは...
+
+- クラス内のさまざまなプロパティ/メソッドを変更/変更/変更するために使用できる関数
+- JavaScriptのDecoratorとは異なる
+- classの中または上部にDecoratorがつく
+- 理解のカギは、**デコレータの実行順序**にある
+- 実験段階の機能である
 
 > デコレータは、クラス宣言、メソッド、アクセサ、プロパティ、またはパラメータにアタッチできる特別な種類の宣言です。デコレータは@expressionの形式を使用します。ここで、expressionは、装飾された宣言に関する情報を使用して実行時に呼び出される関数に評価される必要があります。 たとえば、デコレータ@sealedが与えられた場合、sealed関数を次のように記述できます。
 
@@ -342,4 +349,151 @@ ExampleClass.prototype.second = function() {
     console.log("second(): called");
 }
 ```
+
+講義：
+
+```TypeScript
+// features/decorators.ts
+class Boat {
+    color: string = "red";
+
+    get formattedColor(): string {
+        return `This boat color is ${this.color}`;
+    }
+
+    @testDecorator
+    pilot(): void {
+        console.log('swish');
+    }
+}
+
+function testDecorator(target: any, key: string): void {
+    console.log('Target:', target);
+    console.log('Key:', key);
+}
+```
+
+```bash
+$ ts-node decorators.ts
+# 実行結果
+Target: { pilot: [Function (anonymous)] }
+Key: pilot
+```
+
+#### Decoratorsはproperty, method, accessorからなる
+
+- 第一引数はオブジェクトのプロパティである
+
+上記の例の場合、Boatのプロトタイプである
+上記のbashの出力だと：TargetはBoatのプロトタイプである
+
+- 第二引数はオブジェクトのプロパティ/メソッド/アクセサのキー
+
+bashは`pilot`を出力している
+
+これは@testDecoratorをclass内の Pilot上においているからである
+もしも@testDecoratorをformattedColorに置いたら
+
+```bash
+$ ts-node decorators.ts
+
+Target: { pilot: [Function (anonymous)] }
+Key: formattedColor
+```
+
+と出力される
+
+
+- 第三引数はプロパティ記述子である
+- Decoratorは、このクラスのコードが実行されるときに適用されます（インスタンスが作成されるときではありません）
+
+JavaScriptへのコンパイル結果:
+
+```JavaScript
+
+"use strict";
+
+// この__decorateは、
+// TypeScriptファイルの方で@decoratorを付けると生成される
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+
+class Boat {
+    constructor() {
+        this.color = "red";
+    }
+    get formattedColor() {
+        return `This boat color is ${this.color}`;
+    }
+    pilot() {
+        console.log('swish');
+    }
+}
+
+// 実行呼出は一切ないけれど、
+// Decoratorが実行されている!!
+// 
+// 先の説明の通り、
+__decorate(
+  // Decorator
+  // decoratorが定義されてあれば多分全部入るんだと思う
+  [
+    testDecorator,
+    __metadata("design:type", String),
+    __metadata("design:paramtypes", [])
+  ],
+  // Target
+   Boat.prototype, 
+  //  key
+   "formattedColor", 
+  //  Descriptor
+   null);
+
+
+function testDecorator(target, key) {
+    console.log('Target:', target);
+    console.log('Key:', key);
+}
+```
+
+`__decorator`がしていること:
+
+```JavaScript
+var __decorator = function(decorators, target, key. desc) {
+  var desc = Object.getOwnPropertyDescriptor(target, key);
+
+  for(var decorator of decorators) {
+    decorator(target, key, desc);
+  }
+}
+```
+つまり渡されたすべてのデコレータそれぞれにtartget, key, descriptorを渡して実行されている
+
+ということはつまり、先のdecorators.tsでやっていたのは、
+
+```JavaScript
+
+class Boat {
+  // ...
+  pilot(): void {}
+  // ...
+}
+
+function testDecorator(target, key) {
+    console.log('Target:', target);
+    console.log('Key:', key);
+}
+
+testDecorator(Boat.prototype, 'pilot');
+```
+
+ということである
 

@@ -1,11 +1,11 @@
 class Boat {
     color: string = "red";
 
+    @testDecorator
     get formattedColor(): string {
         return `This boat color is ${this.color}`;
     }
 
-    @testDecorator
     pilot(): void {
         console.log('swish');
     }
