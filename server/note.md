@@ -405,7 +405,12 @@ Key: formattedColor
 
 
 - 第三引数はプロパティ記述子である
-- Decoratorは、このクラスのコードが実行されるときに適用されます（インスタンスが作成されるときではありません）
+- Decoratorは、このクラスのコードが実行されるとき（※）に適用されます（インスタンスが作成されるときではありません）
+
+※実行時というのは関数を実行呼出しているときじゃなくて
+アプリケーションの実行時であるよ
+
+※＠呼出が記述されてあれば呼び出されるよ
 
 JavaScriptへのコンパイル結果:
 
@@ -497,3 +502,164 @@ testDecorator(Boat.prototype, 'pilot');
 
 ということである
 
+#### プロパティ記述子
+
+デコレータメソッドの第三引数のプロパティ記述子とは何者なのか
+
+```TypeScript
+// プロパティ記述子のinterface
+
+interface PropertyDescriptor {
+  // 変更可能または削除可能なプロパティ定義
+    configurable?: boolean;
+    // ループ`for...in`できるかどうか
+    enumerable?: boolean;
+    // 現在の値
+    value?: any;
+    // このプロパティが変更可能かどうか
+    writable?: boolean;
+    get?(): any;
+    set?(v: any): void;
+}
+```
+
+
+```bash
+$ const car = { make: 'honda', year: 2000 };
+undefined
+$ car
+{make: 'honda', year: 2000}
+$ Object.getOwnPropertyDescriptor(car, 'make')
+{value: 'honda', writable: true, enumerable: true, configurable: true}configurable: trueenumerable: truevalue: "honda"writable: true[[Prototype]]: Object
+# 
+# プロパティ記述子のwritableを変更する
+# 
+$ Object.defineProperty(car, 'make', { writable: false });
+{make: 'honda', year: 2000}
+$ car
+{make: 'honda', year: 2000}
+# 
+# するとmakeを変更しようとしても、
+# 
+$ car.make = "Ford"
+'Ford'
+$ car
+# 
+# 変更は反映されない
+# 
+{make: 'honda', year: 2000}
+```
+
+というようにプロパティの扱いについての定義である
+
+
+実際に使ってみて理解を深めよう
+
+```TypeScript
+class Boat {
+    color: string = 'red';
+
+    // ...
+
+    @logError
+    pilot(): void {
+        throw new Error();
+        console.log('swish');
+    }
+}
+
+function testDecorator(target: any, key: string): void {
+    console.log('Target:', target);
+    console.log('Key:', key);
+}
+
+function logError(target: any, key: string, desc: PropertyDescriptor): void {
+  // 
+  // pilot()の上に@logErrorがついているので
+  // valueはメソッドpilotになる
+    const method = desc.value;
+
+    desc.value = function () {
+        try {
+            method();
+        } catch (e) {
+            console.log('Boat was sunk');
+        }
+    };
+}
+
+new Boat().pilot();
+```
+
+上記はつまり、実際にpilot()がどこかで実行される前に
+
+実行時の段階で呼出してみてエラーが起こるかどうか実験しているのである
+
+出力結果
+
+```bash
+$ ts-node decorators.ts
+
+Boat was sunk
+```
+
+
+#### @decorator呼出にデコレータ・ファクトリを渡す
+
+これまでの話では直接@decoratorで関数(logErrorとか)を呼出してきた
+
+@decoratorに引数を渡したいような場合がある
+
+そんな時はデコレータファクトリを使う
+
+```TypeScript
+class Boat {
+    color: string = 'red';
+
+    // 引数付きでデコレータを呼び出す
+    @logError('Boat was sunk')
+    pilot(): void {
+        throw new Error();
+        console.log('swish');
+    }
+}
+
+// デコレータ・ファクトリ
+// 
+// 先のデコレータをラッピングして返す関数
+function logError(errorMessage: string) {
+    return function (target: any, key: string, desc: PropertyDescriptor): void {
+        const method = desc.value;
+    
+        desc.value = function () {
+            try {
+                method();
+            } catch (e) {
+                console.log('Boat was sunk');
+            }
+        };
+    }
+}
+
+new Boat().pilot();
+```
+
+引数が全く必要じゃないなら
+
+デコレータファクトリは必要ないけれど
+
+たとえば上記の例だと、errorMessageとしていろいろな場合が想定されるから
+
+`Boat was sunk`以外にしたい場合もあるでしょう
+
+なので引数をとって呼出すデコレータが一般的になるだろうから
+
+デコレータファクトリは頻繁に使うことになる
+
+#### decoratorを付与できる対象
+
+つまり何の上に@decoratorをつけることができるのって話
+
+- method: クラスメソッドなど
+- property: クラスプロパティ
+- accessor: get, setがついたメソ@
