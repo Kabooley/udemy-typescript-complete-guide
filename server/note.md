@@ -662,4 +662,97 @@ new Boat().pilot();
 
 - method: クラスメソッドなど
 - property: クラスプロパティ
-- accessor: get, setがついたメソ@
+- accessor: get, setがついたメソッド
+
+#### Decorators on Property
+
+**デコレータはインスタンスのプロパティにアクセスすることができない!!**
+
+理由は、デコレータはインスタンスが生成される前に実行されるからである
+
+```TypeScript
+class Boat {
+    // プロパティにデコレータをつけてみた
+    @testDecorator
+    color: string = 'red';
+
+    get formattedColor(): string {
+        return `This boat color is ${this.color}`;
+    }
+
+    pilot(): void {
+        throw new Error();
+        console.log('swish');
+    }
+}
+
+function testDecorator(target: any, key: string): void {
+    // undefined
+    console.log(target[key]);
+    // undefined
+    console.log(target.color);
+}
+
+```
+ 
+ #### Decorator for parameter
+
+ ```TypeScript
+class Boat {
+    color: string = 'red';
+
+    get formattedColor(): string {
+        return `This boat color is ${this.color}`;
+    }
+
+    // Decorator for Parameter
+    pilot(@parameterDecorator speed: string): void {
+        if(speed === 'fast') {
+            console.log("swish");
+        }
+        else {
+            console.log("nothing");
+        }
+    }
+}
+
+function parameterDecorator(target: any, key: string, index: number): void {
+    console.log(key, index);
+}
+ ```
+出力結果
+
+```console
+pilot 0
+```
+
+引数を増やすと...
+
+```TypeScript
+    pilot(
+        @parameterDecorator speed: string,
+        @parameterDecorator generateWake: boolean
+    ): void {
+        if (speed === 'fast') {
+            console.log('swish');
+        } else {
+            console.log('nothing');
+        }
+    }
+```
+
+```console
+pilot 1
+pilot 0
+```
+#### Decorator on Class
+
+まぁ公式を見てくれ
+
+
+## Prerequisities of SECTION 16: Advanced Express and TS Integration
+
+JavaScriptの知識とExpressの知識がちゃんとあることを前提して進めます
+
+とのこと
+
