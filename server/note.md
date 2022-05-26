@@ -756,3 +756,161 @@ JavaScriptの知識とExpressの知識がちゃんとあることを前提して
 
 とのこと
 
+
+
+#### Decorator まとめ
+
+NOTE: TypeScriptのDecoratorの話。
+
+概要：
+
+デコレータは**実行時に呼び出される、**
+
+NOTE: 要まとめ
+
+である。
+
+ここでいう「実行時」というのは関数の実行するとき
+
+ではなくて、
+
+RUNTIMEである。
+
+なので、一番初めに実行される。
+
+付加できる場所：
+
+クラス内のさまざまな宣言、またはクラス宣言自身にデコレータを付加することができる。
+
+呼び出し方は、アクセサ、メソッド、プロパティ、クラス、の上に
+
+またはメソッドの引数の中に
+
+`@expression`のように`@`マークをつけて呼出すことができる。
+
+`expression`の部分は、実際にデコレータとして定義してある関数名になる
+
+
+> TypeScriptとES6にクラスが導入されたことで、クラスとクラスメンバーの注釈付けまたは変更をサポートするための追加機能を必要とする特定のシナリオが存在するようになりました。デコレータは、クラス宣言とメンバーのアノテーションとメタプログラミング構文の両方を追加する方法を提供します。デコレータはJavaScriptのステージ2の提案であり、TypeScriptの実験的な機能として利用できます。
+
+現状、実験的な機能であり、利用するにはtsconfig.jsonを変更する必要がある。
+
+
+
+呼び出し順序：
+
+> クラス内のさまざまな宣言に適用されるデコレータがどのように適用されるかについては、明確に定義された順序があります。
+
+1. パラメータデコレータ、メソッドデコレータ、アクセサデコレータまたはプロパティデコレータが**各インスタンスメンバーに**適用される。
+
+2. パラメータデコレータ、メソッドデコレータ、アクセサデコレータまたはプロパティデコレータが**各静的メンバーに**適用される。
+
+3. パラメータデコレータはコンストラクタに適用される。
+
+4. クラスデコレータがクラスに適用される
+
+
+ということで、
+
+インスタンスメンバ --> 静的メンバ --> コンストラクタ --> クラス
+
+という順番かしら
+
+
+つまり何ができるかといえば、
+
+一番初めにデコレータを付加されたメソッド、プロパティ、またはクラスなどに対して
+
+そのプロパティ記述子を変更したり、
+
+メソッドの実行前に実行しておきたいことを定義したりできる
+
+#### Method Decoratorまとめ
+
+> メソッドデコレータは、メソッド宣言の直前に宣言されます。
+> デコレータはメソッドのプロパティ記述子に適用され、**メソッド定義を監視、変更、または置換するために使用できます。**メソッドデコレータは、宣言ファイル、オーバーロード、またはその他の環境コンテキスト（declareクラスなど）では使用できません。
+
+> メソッドデコレータの式は、実行時に関数として呼び出され、次の3つの引数が使用されます。
+
+```TypeScript
+class Boat {
+    color: string = "red";
+
+    @testDecorator
+    pilot(): void {
+        console.log("Swish");
+    }
+}
+
+// Method Decorator
+// 
+function testDecorator(
+    // Property of instance member or constructor function of the class for a static member
+    target: any, 
+    // Name of member
+    key: string, 
+    // プロパティ記述子メンバー
+    desc: PropertyDescriptor) {
+    console.log({target});
+    console.log({key});
+}
+```
+
+もしもメソッドデコレータが値を返す場合、メソッドのプロパティ記述子として扱われる
+
+```TypeScript
+// デコレータ・ファクトリ
+// @experimentalDecorators
+function enumerable(value: boolean) {
+  return function (target: any,propertyKey: string,descriptor: PropertyDescriptor) {
+    descriptor.enumerable = value;
+  };
+}
+// ---cut---
+class Greeter {
+  greeting: string;
+  constructor(message: string) {
+    this.greeting = message;
+  }
+
+  @enumerable(false)
+  greet() {
+    return "Hello, " + this.greeting;
+  }
+}
+```
+
+デコレータはプロパティ記述子の`enumerable`に引数の値を渡している
+
+これでgreet()メソッドはループ列挙できるようになる
+
+
+## Section16: Advanced Express and TS Integation
+
+アプリケーションの実行プロセスに応じてルータへの関連付けを行う手順
+
+- Nodeがコードを実行する
+- Nodeランタイムがclass定義を読み込んだ時に、デコレータが実行される
+- デコレータは、メタデータを使用してルート構成情報をメソッドに関連付けます。
+- すべてのデコレータが実行される
+- 最後にclass用デコレータが実行される
+- クラスデコレータは各メソッドのメタデータを読み出し、**完全なルート定義をrouterへ追加する**
+
+
+
+#### What is metadata?
+
+Metadataとは...
+
+- JavaScriptへ追加される提案された機能
+- メソッド、プロパティ、クラスなどへ関連付けられる特定のコード
+- カスタムパーツとして使うことができる
+- TypeScriptは型情報をメタデータとして供給できる
+- reflect-metadataというNPMパッケージを使ってメタデータを反映させる 
+
+たとえば、TypeScriptの型情報は、JavaScriptへ変換されるときにすべて失われる
+
+しかしメタデータを使えばJavaScriptの中にコードを保持しておくことができる
+
+つまりJavaScriptへ型情報を、メタデータを使えば絵来るポートできるということである
+
